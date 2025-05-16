@@ -84,70 +84,53 @@ export default function DiscoverProblems() {
   const fetchProblems = async () => {
     setLoading(true);
     setError(null);
-    
-    try {
-      // Make sure we have a valid Firestore instance
-      if (!db) {
-        throw new Error("Firestore database not initialized");
-      }
-      
-      // Create a reference to the problems collection
-      const problemsRef = collection(db, "problems");
-      
-      // Create a query based on the sort option
-      let q;
-      switch (sortBy) {
-        case 'votes':
-          q = query(problemsRef, orderBy("votes", "desc"));
-          break;
-        case 'discussions':
-          q = query(problemsRef, orderBy("discussions", "desc"));
-          break;
-        case 'timestamp':
-          q = query(problemsRef, orderBy("timestamp", "desc"));
-          break;
-        case 'title':
-          q = query(problemsRef, orderBy("title", "asc"));
-          break;
-        default:
-          q = query(problemsRef, orderBy("votes", "desc"));
-      }
-      
-      // Execute the query
-      const querySnapshot = await getDocs(q);
-      
-      // Map the documents to our problems array
-      const problemsData = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          ...data,
-          // Convert Firebase Timestamp to relative time string
-          createdAt: data.timestamp ? calculateTimeAgo(data.timestamp.toDate()) : "Unknown date",
-          // Ensure all required fields have default values to prevent undefined errors
-          title: data.title || "",
-          description: data.description || "",
-          category: data.category || "",
-          votes: data.votes || 0,
-          discussions: data.discussions || 0,
-          tags: data.tags || []
-        };
-      });
 
-      // console.log(problemsData);
-      
+    try {
+      validateDatabase();
+      const problemsData = await fetchProblemsData();
       setProblems(problemsData);
     } catch (error) {
-      console.error("Error fetching problems:", error);
-      setError("Failed to load problems. Please try again later.");
-      toast({
-        title: "Error",
-        description: "Failed to load problems. Please try again later.",
-        variant: "destructive"
-      });
+      handleFetchError(error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const validateDatabase = () => {
+    if (!db) {
+      throw new Error("Firestore database not initialized");
+    }
+  };
+
+  const fetchProblemsData = async () => {
+    const problemsRef = collection(db, "problems");
+    const q = query(problemsRef, orderBy(sortBy, sortBy === 'title' ? 'asc' : 'desc'));
+    const querySnapshot = await getDocs(q);
+
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.timestamp ? calculateTimeAgo(data.timestamp.toDate()) : "Unknown date",
+        title: data.title || "",
+        description: data.description || "",
+        category: data.category || "",
+        votes: data.votes || 0,
+        discussions: data.discussions || 0,
+        tags: data.tags || []
+      };
+    });
+  };
+
+  const handleFetchError = (error) => {
+    console.error("Error fetching problems:", error);
+    setError("Failed to load problems. Please try again later.");
+    toast({
+      title: "Error",
+      description: "Failed to load problems. Please try again later.",
+      variant: "destructive"
+    });
   };
   
   // Calculate time ago (e.g., "3 days ago")
@@ -206,6 +189,7 @@ export default function DiscoverProblems() {
   useEffect(() => {
     fetchProblems();
   }, [sortBy]); // Removed db dependency as it shouldn't change
+  
   const handleSortChange = (value) => {
     setSortBy(value);
   };
@@ -221,6 +205,14 @@ export default function DiscoverProblems() {
       return;
     }
     router.push('/post');
+  };
+  
+  // Handle keyboard navigation
+  const handleKeyDown = (e, problemId) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      router.push(`/problems/${problemId}`);
+    }
   };
   
   // Filter problems based on search query and selected categories
@@ -243,51 +235,22 @@ export default function DiscoverProblems() {
   
   // Generate page numbers for pagination
   const getPageNumbers = () => {
-    const pageNumbers = [];
     const maxPagesToShow = 5; // Show at most 5 page numbers
-    
+    const pageNumbers = [];
+
     if (totalPages <= maxPagesToShow) {
-      // If we have 5 or fewer pages, show all of them
-      for (let i = 1; i <= totalPages; i++) {
-        pageNumbers.push(i);
-      }
-    } else {
-      // Always include first page
-      pageNumbers.push(1);
-      
-      // Calculate start and end of page numbers to show
-      let startPage = Math.max(2, currentPage - 1);
-      let endPage = Math.min(totalPages - 1, currentPage + 1);
-      
-      // Adjust if we're near the start
-      if (currentPage <= 3) {
-        endPage = Math.min(totalPages - 1, 4);
-      }
-      
-      // Adjust if we're near the end
-      if (currentPage >= totalPages - 2) {
-        startPage = Math.max(2, totalPages - 3);
-      }
-      
-      // Add ellipsis after first page if needed
-      if (startPage > 2) {
-        pageNumbers.push('...');
-      }
-      
-      // Add middle pages
-      for (let i = startPage; i <= endPage; i++) {
-        pageNumbers.push(i);
-      }
-      
-      // Add ellipsis before last page if needed
-      if (endPage < totalPages - 1) {
-        pageNumbers.push('...');
-      }
-      
-      // Always include last page
-      pageNumbers.push(totalPages);
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
     }
-    
+
+    const startPage = Math.max(2, Math.min(currentPage - 1, totalPages - maxPagesToShow + 2));
+    const endPage = Math.min(totalPages - 1, startPage + maxPagesToShow - 3);
+
+    pageNumbers.push(1); // Always include the first page
+    if (startPage > 2) pageNumbers.push('...'); // Ellipsis if there's a gap
+    for (let i = startPage; i <= endPage; i++) pageNumbers.push(i); // Middle pages
+    if (endPage < totalPages - 1) pageNumbers.push('...'); // Ellipsis if there's a gap
+    pageNumbers.push(totalPages); // Always include the last page
+
     return pageNumbers;
   };
   
@@ -428,48 +391,56 @@ export default function DiscoverProblems() {
               {currentProblems.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {currentProblems.map((problem) => (
-                    <Card 
-                      key={problem.id} 
-                      className="border border-slate-200 dark:border-slate-700 hover:border-blue-400 transition-colors cursor-pointer"
-                      onClick={() => router.push(`/problem/${problem.id}`)}
+                    <Link 
+                      href={`/problems/${problem.id}`} 
+                      key={problem.id}
+                      className="block no-underline"
                     >
-                      <CardHeader>
-                        <div className="flex justify-between items-start">
-                          <div className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 rounded text-xs">
-                            {problem.category}
+                      <Card 
+                        className="cursor-pointer hover:shadow-md transition h-full border border-slate-200 dark:border-slate-700 hover:border-blue-400"
+                        tabIndex={0}
+                        onKeyDown={(e) => handleKeyDown(e, problem.id)}
+                        role="button"
+                        aria-label={`View details for ${problem.title}`}
+                      >
+                        <CardHeader>
+                          <div className="flex justify-between items-start">
+                            <div className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 rounded text-xs">
+                              {problem.category}
+                            </div>
+                            <div className="flex items-center text-sm text-slate-500">
+                              <TrendingUp className="h-4 w-4 mr-1" /> {problem.votes}
+                            </div>
                           </div>
+                          <CardTitle className="mt-3">{problem.title}</CardTitle>
+                          <CardDescription className="mt-2 line-clamp-2">
+                            {problem.description}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex flex-wrap gap-2">
+                            {problem.tags && problem.tags.map((tag, index) => (
+                              <span key={index} className="inline-block px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full text-xs">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        </CardContent>
+                        <CardFooter className="flex justify-between border-t border-slate-200 dark:border-slate-700 pt-4">
                           <div className="flex items-center text-sm text-slate-500">
-                            <TrendingUp className="h-4 w-4 mr-1" /> {problem.votes}
+                            <div className="flex items-center mr-4">
+                              <MessageSquare className="h-4 w-4 mr-1" /> {problem.discussions || 0}
+                            </div>
+                            <div className="flex items-center">
+                              <Clock className="h-4 w-4 mr-1" /> {problem.createdAt}
+                            </div>
                           </div>
-                        </div>
-                        <CardTitle className="mt-3">{problem.title}</CardTitle>
-                        <CardDescription className="mt-2 line-clamp-2">
-                          {problem.description}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex flex-wrap gap-2">
-                          {problem.tags && problem.tags.map((tag, index) => (
-                            <span key={index} className="inline-block px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full text-xs">
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      </CardContent>
-                      <CardFooter className="flex justify-between border-t border-slate-200 dark:border-slate-700 pt-4">
-                        <div className="flex items-center text-sm text-slate-500">
-                          <div className="flex items-center mr-4">
-                            <MessageSquare className="h-4 w-4 mr-1" /> {problem.discussions || 0}
-                          </div>
-                          <div className="flex items-center">
-                            <Clock className="h-4 w-4 mr-1" /> {problem.createdAt}
-                          </div>
-                        </div>
-                        <Button variant="ghost" size="sm" className="text-blue-600">
-                          View Details
-                        </Button>
-                      </CardFooter>
-                    </Card>
+                          <Button variant="ghost" size="sm" className="text-blue-600">
+                            View Details
+                          </Button>
+                        </CardFooter>
+                      </Card>
+                    </Link>
                   ))}
                 </div>
               ) : (
@@ -493,61 +464,69 @@ export default function DiscoverProblems() {
               {currentProblems.length > 0 ? (
                 <div className="flex flex-col gap-4">
                   {currentProblems.map((problem) => (
-                    <Card 
-                      key={problem.id} 
-                      className="border border-slate-200 dark:border-slate-700 hover:border-blue-400 transition-colors cursor-pointer"
-                      onClick={() => navigateToProblemDetail(problem.id)}
+                    <Link 
+                      href={`/problems/${problem.id}`}
+                      key={problem.id}
+                      className="block no-underline"
                     >
-                      <div className="flex flex-col md:flex-row p-4">
-                        <div className="flex-grow">
-                          <div className="flex items-center gap-3 mb-2">
-                            <div className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 rounded text-xs">
-                              {problem.category}
+                      <Card 
+                        className="cursor-pointer hover:shadow-md transition border border-slate-200 dark:border-slate-700 hover:border-blue-400"
+                        tabIndex={0}
+                        onKeyDown={(e) => handleKeyDown(e, problem.id)}
+                        role="button"
+                        aria-label={`View details for ${problem.title}`}
+                      >
+                        <div className="flex flex-col md:flex-row p-4">
+                          <div className="flex-grow">
+                            <div className="flex items-center gap-3 mb-2">
+                              <div className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 rounded text-xs">
+                                {problem.category}
+                              </div>
+                              <div className="flex items-center text-sm text-slate-500">
+                                <Calendar className="h-4 w-4 mr-1" /> {problem.createdAt}
+                              </div>
+                              <div className="flex items-center text-sm text-slate-500">
+                                <Users className="h-4 w-4 mr-1" /> {problem.submittedBy}
+                              </div>
                             </div>
-                            <div className="flex items-center text-sm text-slate-500">
-                              <Calendar className="h-4 w-4 mr-1" /> {problem.createdAt}
-                            </div>
-                            <div className="flex items-center text-sm text-slate-500">
-                              <Users className="h-4 w-4 mr-1" /> {problem.submittedBy}
+                            
+                            <h3 className="text-xl font-semibold mb-2 text-slate-900 dark:text-slate-50">
+                              {problem.title}
+                            </h3>
+                            
+                            <p className="text-slate-600 dark:text-slate-300 mb-3">
+                              {problem.description}
+                            </p>
+                            
+                            <div className="flex flex-wrap gap-2 mb-3">
+                              {problem.tags && problem.tags.map((tag, index) => (
+                                <span key={index} className="inline-block px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full text-xs">
+                                  {tag}
+                                </span>
+                              ))}
                             </div>
                           </div>
                           
-                          <h3 className="text-xl font-semibold mb-2 text-slate-900 dark:text-slate-50">
-                            {problem.title}
-                          </h3>
-                          
-                          <p className="text-slate-600 dark:text-slate-300 mb-3">
-                            {problem.description}
-                          </p>
-                          
-                          <div className="flex flex-wrap gap-2 mb-3">
-                            {problem.tags && problem.tags.map((tag, index) => (
-                              <span key={index} className="inline-block px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full text-xs">
-                                {tag}
-                              </span>
-                            ))}
+                          <div className="flex flex-row md:flex-col gap-4 justify-between mt-4 md:mt-0 md:ml-6 md:min-w-24">
+                            <div className="flex flex-col items-center">
+                              <ThumbsUp className="h-5 w-5 text-blue-500" />
+                              <span className="text-sm font-medium">{problem.votes}</span>
+                              <span className="text-xs text-slate-500">Votes</span>
+                            </div>
+                            
+                            <div className="flex flex-col items-center">
+                              <MessageSquare className="h-5 w-5 text-blue-500" />
+                              <span className="text-sm font-medium">{problem.discussions || 0}</span>
+                              <span className="text-xs text-slate-500">Replies</span>
+                            </div>
+                            
+                            <Button className="bg-blue-600 hover:bg-blue-700 w-full">
+                              View
+                            </Button>
                           </div>
                         </div>
-                        
-                        <div className="flex flex-row md:flex-col gap-4 justify-between mt-4 md:mt-0 md:ml-6 md:min-w-24">
-                          <div className="flex flex-col items-center">
-                            <ThumbsUp className="h-5 w-5 text-blue-500" />
-                            <span className="text-sm font-medium">{problem.votes}</span>
-                            <span className="text-xs text-slate-500">Votes</span>
-                          </div>
-                          
-                          <div className="flex flex-col items-center">
-                            <MessageSquare className="h-5 w-5 text-blue-500" />
-                            <span className="text-sm font-medium">{problem.discussions || 0}</span>
-                            <span className="text-xs text-slate-500">Replies</span>
-                          </div>
-                          
-                          <Button className="bg-blue-600 hover:bg-blue-700 w-full">
-                            View
-                          </Button>
-                        </div>
-                      </div>
-                    </Card>
+                      </Card>
+                    </Link>
                   ))}
                 </div>
               ) : (

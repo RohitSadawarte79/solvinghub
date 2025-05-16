@@ -34,12 +34,12 @@ export default function Navbar() {
         <Link href="/post" className="text-sm text-muted-foreground hover:text-black">
           Post
         </Link>
-        <Link href="./navbar components/my-problems" className="text-sm text-muted-foreground hover:text-black">
+        <Link href="/my-problems" className="text-sm text-muted-foreground hover:text-black">
           My Problems
         </Link>
-        <Link href="./navbar components/categories" className="text-sm text-muted-foreground hover:text-black">
+        {/* <Link href="./navbar components/categories" className="text-sm text-muted-foreground hover:text-black">
           Categories
-        </Link>
+        </Link> */}
       </div>
 
       {/* Right: User Login / Avatar */}

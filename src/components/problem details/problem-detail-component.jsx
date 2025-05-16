@@ -34,7 +34,8 @@ import {
   deleteDoc,
   serverTimestamp,
   increment,
-  onSnapshot
+  onSnapshot,
+  writeBatch
 } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 
@@ -68,6 +69,7 @@ export default function ProblemDetail({ params }) {
 
     return () => unsubscribe();
   }, [problemId]); // Add problemId as dependency
+
   // Fetch user's votes
   const fetchUserVotes = async (userId) => {
     try {
@@ -331,6 +333,8 @@ export default function ProblemDetail({ params }) {
   
   // Handle comment submission
   const handleSubmitComment = async (e) => {
+    e.preventDefault();
+    
     if (!auth.currentUser) {
       toast({
         title: "Authentication Required",
@@ -391,7 +395,6 @@ export default function ProblemDetail({ params }) {
   };
   
   // Handle reply submission
-  // (Function is defined but not used in the UI. You may implement reply UI later.)
   const handleReplySubmit = async (commentId, replyText) => {
     if (!auth.currentUser) {
       toast({
@@ -401,8 +404,46 @@ export default function ProblemDetail({ params }) {
       });
       return;
     }
+    
+    if (!replyText || !replyText.trim()) {
+      toast({
+        title: "Empty Reply",
+        description: "Please enter a reply before submitting.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      const newReply = {
+        commentId,
+        problemId,
+        text: replyText,
+        authorId: auth.currentUser.uid,
+        authorName: auth.currentUser.displayName || "Anonymous",
+        authorPhotoURL: auth.currentUser.photoURL || null,
+        timestamp: serverTimestamp()
+      };
       
-    // Implementation would go here
+      // Add reply to Firestore
+      await addDoc(collection(db, "replies"), newReply);
+      
+      // Clear the reply input and hide reply box
+      setReplyText({...replyText, [commentId]: ''});
+      setShowReplyBox({...showReplyBox, [commentId]: false});
+      
+      toast({
+        title: "Reply Posted",
+        description: "Your reply has been added to the comment."
+      });
+    } catch (error) {
+      console.error("Error posting reply:", error);
+      toast({
+        title: "Error",
+        description: "Failed to post your reply. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
   
   // Handle comment deletion
@@ -441,14 +482,16 @@ export default function ProblemDetail({ params }) {
       const repliesRef = collection(db, "replies");
       const repliesQuery = query(repliesRef, where("commentId", "==", commentId));
       const repliesSnapshot = await getDocs(repliesQuery);
+      // Create a batch
+      const batch = writeBatch(db);
       
-      // Batch delete all replies
-      const batch = db.batch();
+      // Add all reply deletions to the batch
       repliesSnapshot.forEach(replyDoc => {
         batch.delete(replyDoc.ref);
       });
       
-      // Delete the comment
+      // Add comment deletion to the batch
+      batch.delete(commentRef);
       batch.delete(commentRef);
       
       // Commit the batch
@@ -473,6 +516,7 @@ export default function ProblemDetail({ params }) {
       });
     }
   };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -495,151 +539,223 @@ export default function ProblemDetail({ params }) {
   }
 
   return (
-  <Card>
-  return (
-    <div>
-      <Card>
+    <div className="container mx-auto px-4 py-8">
+      <Card className="mb-8">
         <CardHeader>
-          <CardTitle className="text-base font-medium">Impacts</CardTitle>
+          <div className="flex flex-col gap-2">
+            <CardTitle className="text-2xl font-bold">{problem.title}</CardTitle>
+            <CardDescription className="text-sm flex items-center gap-2">
+              <span>Posted {problem.createdAt}</span>
+              <span>•</span>
+              <span>{problem.votes} votes</span>
+              <span>•</span>
+              <span>{problem.discussions} comments</span>
+            </CardDescription>
+          </div>
         </CardHeader>
         <CardContent>
-          <ul className="list-disc pl-5 space-y-2">
-            {problem.impacts && problem.impacts.map((impact, index) => (
-              <li key={index} className="text-slate-700 dark:text-slate-200">{impact}</li>
-            ))}
-          </ul>
-        const problemRef = doc(db, "problems", problemId);
-        await updateDoc(problemRef, {
-          discussions: increment(-1)
-        });
-  
-        toast({
-          title: "Comment Deleted",
-          description: "Your comment and its replies have been deleted."
-        });
-      } catch (error) {
-        console.error("Error deleting comment:", error);
-        toast({
-  // Handle comment deletion
-  // (Function is defined but not used in the UI. You may implement comment deletion UI later.)
-                  <ul className="list-disc pl-5 space-y-2">
-                    {problem.impacts && problem.impacts.map((impact, index) => (
-                      <li key={index} className="text-slate-700 dark:text-slate-200">{impact}</li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-  
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base font-medium">Challenges</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ul className="list-disc pl-5 space-y-2">
-                    {problem.challenges && problem.challenges.map((challenge, index) => (
-                      <li key={index} className="text-slate-700 dark:text-slate-200">{challenge}</li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            </div>
-  
-            <div className="flex gap-4">
-              <Button
-                variant={userVotes.problem ? "default" : "outline"}
-                className="flex items-center gap-2"
-                onClick={handleVoteProblem}
-              >
-                <ThumbsUp className={`h-5 w-5 ${userVotes.problem ? 'fill-white' : ''}`} />
-                {userVotes.problem ? "Upvoted" : "Upvote"}
-              </Button>
-            </div>
+          <div className="mb-6">
+            <h3 className="font-semibold mb-2">Description</h3>
+            <p className="text-slate-700 dark:text-slate-200 whitespace-pre-wrap">
+              {problem.description}
+            </p>
           </div>
-  
-          {/* Tabs for Discussion and Solutions */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
-            <TabsList className="mb-4">
-              <TabsTrigger value="discussion">Discussion ({problem.discussions})</TabsTrigger>
-              <TabsTrigger value="solutions">Proposed Solutions</TabsTrigger>
-            </TabsList>
-  
-            <TabsContent value="discussion">
-              {/* Add Comment */}
-              <Card className="mb-6">
-                <CardHeader>
-                  <CardTitle className="text-lg font-semibold">Join the Discussion</CardTitle>
-                  <CardDescription>
-                    Share your thoughts, questions, or insights about this problem.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleSubmitComment}>
-                    <Textarea
-                      placeholder="Write your comment here..."
-                      className="min-h-24 mb-4"
-                      value={commentText}
-                      onChange={(e) => setCommentText(e.target.value)}
-                      disabled={!auth.currentUser}
-                    />
-                    {!auth.currentUser && (
-                      <p className="text-sm text-amber-600 dark:text-amber-400 mb-4">
-                        Please log in to join the discussion.
-                      </p>
-                    )}
-                    <div className="flex justify-end">
-                      <Button type="submit" disabled={!auth.currentUser || !commentText.trim()}>
-                        Post Comment
-                      </Button>
-                    </div>
-                  </form>
-                </CardContent>
-              </Card>
-  
-              {/* Comments Section */}
-              <div className="space-y-6">
-                {loadingComments ? (
-                  <div className="flex justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                  </div>
-                ) : comments.length === 0 ? (
-                  <div className="py-8 text-center text-slate-500">
-                    No comments yet. Be the first to share your thoughts!
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    {/* Map through comments and render them */}
-                    {comments.map(comment => (
-                      <Card key={comment.id} className="mb-4">
-                        <CardHeader>
-                          <div className="flex justify-between items-start">
-                            <div className="flex items-center gap-2">
-                              <Avatar>
-                                <AvatarImage src={comment.authorPhotoURL} />
-                                <AvatarFallback>{comment.authorName?.charAt(0) || 'A'}</AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <p className="font-medium">{comment.authorName}</p>
-                                <p className="text-xs text-slate-500">{comment.createdAt}</p>
-                              </div>
-                            </div>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="whitespace-pre-wrap">{comment.text}</p>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
+
+          <div className="grid md:grid-cols-2 gap-4 mb-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base font-medium">Impacts</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="list-disc pl-5 space-y-2">
+                  {problem.impacts && problem.impacts.map((impact, index) => (
+                    <li key={index} className="text-slate-700 dark:text-slate-200">{impact}</li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base font-medium">Challenges</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="list-disc pl-5 space-y-2">
+                  {problem.challenges && problem.challenges.map((challenge, index) => (
+                    <li key={index} className="text-slate-700 dark:text-slate-200">{challenge}</li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="flex gap-4">
+            <Button
+              variant={userVotes.problem ? "default" : "outline"}
+              className="flex items-center gap-2"
+              onClick={handleVoteProblem}
+            >
+              <ThumbsUp className={`h-5 w-5 ${userVotes.problem ? 'fill-white' : ''}`} />
+              {userVotes.problem ? "Upvoted" : "Upvote"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Tabs for Discussion and Solutions */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
+        <TabsList className="mb-4">
+          <TabsTrigger value="discussion">Discussion ({problem.discussions})</TabsTrigger>
+          <TabsTrigger value="solutions">Proposed Solutions</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="discussion">
+          {/* Add Comment */}
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold">Join the Discussion</CardTitle>
+              <CardDescription>
+                Share your thoughts, questions, or insights about this problem.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmitComment}>
+                <Textarea
+                  placeholder="Write your comment here..."
+                  className="min-h-24 mb-4"
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  disabled={!auth.currentUser}
+                />
+                {!auth.currentUser && (
+                  <p className="text-sm text-amber-600 dark:text-amber-400 mb-4">
+                    Please log in to join the discussion.
+                  </p>
                 )}
+                <div className="flex justify-end">
+                  <Button type="submit" disabled={!auth.currentUser || !commentText.trim()}>
+                    Post Comment
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
+          {/* Comments Section */}
+          <div className="space-y-6">
+            {loadingComments ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               </div>
-            </TabsContent>
-            <TabsContent value="solutions">
+            ) : comments.length === 0 ? (
               <div className="py-8 text-center text-slate-500">
-                Solutions feature coming soon.
+                No comments yet. Be the first to share your thoughts!
               </div>
-            </TabsContent>
-          </Tabs>
-        </div>
-      </div>
-    );
-  }
+            ) : (
+              <div className="space-y-6">
+                {/* Map through comments and render them */}
+                {comments.map(comment => (
+                  <Card key={comment.id} className="mb-4">
+                    <CardHeader>
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2">
+                          <Avatar>
+                            <AvatarImage src={comment.authorPhotoURL} />
+                            <AvatarFallback>{comment.authorName?.charAt(0) || 'A'}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium">{comment.authorName}</p>
+                            <p className="text-xs text-slate-500">{comment.createdAt}</p>
+                          </div>
+                        </div>
+                        {auth.currentUser && comment.authorId === auth.currentUser.uid && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => handleDeleteComment(comment.id)}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                          >
+                            Delete
+                          </Button>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="whitespace-pre-wrap">{comment.text}</p>
+                      
+                      {/* Reply button and comments */}
+                      <div className="mt-4">
+                        <div className="flex items-center gap-2 mt-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-slate-500"
+                            onClick={() => setShowReplyBox({
+                              ...showReplyBox, 
+                              [comment.id]: !showReplyBox[comment.id]
+                            })}
+                          >
+                            <MessageSquare className="h-4 w-4 mr-1" />
+                            Reply
+                          </Button>
+                        </div>
+                        
+                        {/* Reply form */}
+                        {showReplyBox[comment.id] && (
+                          <div className="mt-4 pl-6 border-l-2 border-slate-200">
+                            <Textarea
+                              placeholder="Write your reply..."
+                              className="min-h-20 mb-2"
+                              value={replyText[comment.id] || ''}
+                              onChange={(e) => setReplyText({
+                                ...replyText,
+                                [comment.id]: e.target.value
+                              })}
+                              disabled={!auth.currentUser}
+                            />
+                            <Button 
+                              size="sm"
+                              onClick={() => handleReplySubmit(comment.id, replyText[comment.id])}
+                              disabled={!auth.currentUser || !replyText[comment.id]?.trim()}
+                            >
+                              Post Reply
+                            </Button>
+                          </div>
+                        )}
+                        
+                        {/* Replies */}
+                        {comment.replies && comment.replies.length > 0 && (
+                          <div className="mt-4 pl-6 border-l-2 border-slate-200 space-y-4">
+                            {comment.replies.map(reply => (
+                              <div key={reply.id} className="pb-2">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Avatar className="h-6 w-6">
+                                    <AvatarImage src={reply.authorPhotoURL} />
+                                    <AvatarFallback>{reply.authorName?.charAt(0) || 'A'}</AvatarFallback>
+                                  </Avatar>
+                                  <span className="font-medium text-sm">{reply.authorName}</span>
+                                  <span className="text-xs text-slate-500">{reply.createdAt}</span>
+                                </div>
+                                <p className="text-sm whitespace-pre-wrap">{reply.text}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="solutions">
+          <div className="py-8 text-center text-slate-500">
+            Solutions feature coming soon.
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
