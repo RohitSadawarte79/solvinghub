@@ -1,8 +1,8 @@
-"use client";;
+"use client";
 import { useEffect, useRef, useState } from "react";
 import { Color, Scene, Fog, PerspectiveCamera, Vector3 } from "three";
 import ThreeGlobe from "three-globe";
-import { useThree, Canvas, extend } from "@react-three/fiber";
+import { useThree, Canvas, extend, Group } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import countries from "@/data/globe.json";
 
@@ -12,7 +12,7 @@ const RING_PROPAGATION_SPEED = 3;
 const aspect = 1.2;
 const cameraZ = 300;
 
-let numbersOfRings = [0];
+// Removed unused variable
 
 export function Globe({
   globeConfig = {},
@@ -73,7 +73,7 @@ export function Globe({
     let points = [];
     for (let i = 0; i < arcs.length; i++) {
       const arc = arcs[i];
-      const rgb = hexToRgb(arc.color);
+      // Removed unused rgb variable
       points.push({
         size: defaultProps.pointSize,
         order: arc.order,
@@ -155,7 +155,7 @@ export function Globe({
       const newNumbersOfRings = genRandomNumbers(0, data.length, Math.floor((data.length * 4) / 5));
 
       const ringsData = data
-        .filter((d, i) => newNumbersOfRings.includes(i))
+        .filter((_, i) => newNumbersOfRings.includes(i))
         .map((d) => ({
           lat: d.startLat,
           lng: d.startLng,
@@ -170,7 +170,7 @@ export function Globe({
     };
   }, [isInitialized, data]);
 
-  return <group ref={groupRef} />;
+  return <Group />;
 }
 
 export function WebGLRendererConfig() {
@@ -219,7 +219,7 @@ export function World(props) {
 
 export function hexToRgb(hex) {
   var shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
-  hex = hex.replace(shorthandRegex, function (m, r, g, b) {
+  hex = hex.replace(shorthandRegex, function (_, r, g, b) {
     return r + r + g + g + b + b;
   });
 

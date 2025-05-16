@@ -1,21 +1,18 @@
 'use client'
 
-import { signInWithPopup } from 'firebase/auth'
-import { auth, provider } from '@/lib/firebase'
+import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth'
+import { auth } from '@/lib/firebase'
 import { Button } from '@/components/ui/button'
-import { Globe } from '@/components/ui/globe' // 👈 Your globe component
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { onAuthStateChanged } from 'firebase/auth'
 
 export default function LoginPage() {
   const router = useRouter()
-  const [user, setUser] = useState(null)
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
-        setUser(currentUser)
         router.push('/dashboard') // ✅ Redirect if already logged in
       }
     })
@@ -23,14 +20,19 @@ export default function LoginPage() {
   }, [router])
 
   const handleLogin = async () => {
-    await signInWithPopup(auth, provider)
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider)
+      router.push('/dashboard')
+    } catch (error) {
+      console.error("Authentication failed:", error);
+    }
   }
 
   return (
     <div className="relative flex flex-col items-center justify-center h-screen overflow-hidden">
-      {/* Globe Background */}
-      <Globe />
-
+      {/* Globe Background - Implement your globe here if needed */}
+      
       {/* Login Overlay */}
       <div className="absolute z-50 flex flex-col items-center justify-center bg-white/80 dark:bg-black/70 backdrop-blur-md p-6 rounded-xl shadow-xl">
         <h1 className="text-3xl font-bold mb-4 text-black dark:text-white">Welcome to SolvingHub</h1>

@@ -28,10 +28,10 @@ export default function Navbar() {
         <Link href="/" className="text-xl font-bold text-black font">
           SolvingHub
         </Link>
-        <Link href="./navbar components/explore" className="text-sm text-muted-foreground hover:text-black">
+        <Link href="/discover" className="text-sm text-muted-foreground hover:text-black">
           Explore
         </Link>
-        <Link href="./navbar components/post" className="text-sm text-muted-foreground hover:text-black">
+        <Link href="/post" className="text-sm text-muted-foreground hover:text-black">
           Post
         </Link>
         <Link href="./navbar components/my-problems" className="text-sm text-muted-foreground hover:text-black">
