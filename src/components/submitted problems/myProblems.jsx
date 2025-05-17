@@ -134,7 +134,7 @@ export default function MyProblems() {
     <div className="container mx-auto px-4 py-16">
       <div className="flex flex-col justify-start  mb-8">
         <Link href="/discover">
-          <Button variant="ghost" className="mr-4 bg-black text-white">
+          <Button style={{ cursor: 'pointer' }} variant="ghost" className="mr-4 bg-black text-white">
             <ChevronLeft className="h-5 w-5 mr-1" />
             Back to Problems
           </Button>
@@ -156,8 +156,8 @@ export default function MyProblems() {
               <p className="text-slate-600 dark:text-slate-300 mb-6">
                 Share real-world problems with the community and get innovative solutions.
               </p>
-              <Link href="/problems/post">
-                <Button>Post Your First Problem</Button>
+              <Link href="/post">
+                <Button style={{ cursor: 'pointer' }} >Post Your First Problem</Button>
               </Link>
             </div>
           </CardContent>
@@ -214,13 +214,13 @@ export default function MyProblems() {
                   
                   <CardFooter className="pt-2 border-t border-slate-100 dark:border-slate-800">
                     <div className="flex justify-between w-full">
-                      <Button variant="ghost" size="sm" onClick={() => handleEdit(problem.id)}>
+                      <Button style={{ cursor: 'pointer' }} variant="ghost" size="sm" onClick={() => handleEdit(problem.id)}>
                         <Edit className="h-4 w-4 mr-1" /> Edit
                       </Button>
                       
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button 
+                          <Button style={{ cursor: 'pointer' }}
                             variant="ghost" 
                             size="sm" 
                             className="text-red-500 hover:text-red-700 hover:bg-red-50"
@@ -256,7 +256,7 @@ export default function MyProblems() {
           
           <div className="mt-6 flex justify-center">
             <Link href="/problems/post">
-              <Button>Post New Problem</Button>
+              <Button style={{ cursor: 'pointer' }} >Post New Problem</Button>
             </Link>
           </div>
         </>

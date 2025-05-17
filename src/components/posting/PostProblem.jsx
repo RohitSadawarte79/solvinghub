@@ -229,7 +229,7 @@ export default function PostProblem() {
         title: "Problem Submitted",
         description: "Your problem has been successfully posted. Thank you for your contribution!"
       });
-      router.push('/problems');
+      router.push('/my-problems');
     } catch (error) {
       console.error("Error submitting problem:", error);
       toast({
@@ -262,8 +262,8 @@ export default function PostProblem() {
     <FormProvider {...methods}>
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center mb-8">
-            <Link href="/discover">
-          <Button
+            <Link  href="/discover">
+          <Button 
             variant="ghost"
             className="mr-4"
             onClick={() => {
@@ -385,7 +385,7 @@ export default function PostProblem() {
             </CardContent>
             
             <CardFooter className="border-t border-slate-200 dark:border-slate-700 pt-4 flex justify-between">
-              <Button
+              <Button style={{ cursor: 'pointer' }} 
                 variant="outline"
                 type="button"
                 onClick={() => toggleView('edit')}
@@ -393,7 +393,7 @@ export default function PostProblem() {
                 Return to Edit
               </Button>
               
-              <Button
+              <Button style={{ cursor: 'pointer' }} 
                 type="button"
                 onClick={handleSubmit}
                 disabled={isSubmitting}
@@ -485,7 +485,7 @@ export default function PostProblem() {
                       {tags.map((tag, index) => (
                         <Badge key={index} variant="secondary" className="flex items-center">
                           {tag}
-                          <button
+                          <button style={{ cursor: 'pointer' }} 
                             type="button"
                             onClick={() => handleRemoveTag(tag)}
                             className="ml-1 hover:text-red-500"
@@ -512,7 +512,7 @@ export default function PostProblem() {
                           }}
                         />
                       </FormControl>
-                      <Button
+                      <Button style={{ cursor: 'pointer' }} 
                         type="button"
                         onClick={handleAddTag}
                         className="rounded-l-none"
@@ -543,7 +543,7 @@ export default function PostProblem() {
                               className={errors.impacts && !impact.trim() ? 'border-red-500' : ''}
                             />
                           </FormControl>
-                          <Button
+                          <Button style={{ cursor: 'pointer' }} 
                             type="button"
                             variant="ghost"
                             size="icon"
@@ -555,7 +555,7 @@ export default function PostProblem() {
                           </Button>
                         </div>
                       ))}
-                      <Button
+                      <Button style={{ cursor: 'pointer' }} 
                         type="button"
                         variant="ghost"
                         className="flex items-center mt-2"
@@ -585,7 +585,7 @@ export default function PostProblem() {
                               className={errors.challenges && !challenge.trim() ? 'border-red-500' : ''}
                             />
                           </FormControl>
-                          <Button
+                          <Button style={{ cursor: 'pointer' }} 
                             type="button"
                             variant="ghost"
                             size="icon"
@@ -597,7 +597,7 @@ export default function PostProblem() {
                           </Button>
                         </div>
                       ))}
-                      <Button
+                      <Button style={{ cursor: 'pointer' }} 
                         type="button"
                         variant="ghost"
                         className="flex items-center mt-2"
@@ -616,7 +616,7 @@ export default function PostProblem() {
               <CardFooter className="border-t border-slate-200 dark:border-slate-700 pt-4 flex justify-between">
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="outline" type="button">
+                    <Button style={{ cursor: 'pointer' }}  variant="outline" type="button">
                       Cancel
                     </Button>
                   </AlertDialogTrigger>
@@ -637,7 +637,7 @@ export default function PostProblem() {
                 </AlertDialog>
                 
                 <div className="flex gap-2">
-                  <Button
+                  <Button style={{ cursor: 'pointer' }} 
                     variant="outline"
                     type="button"
                     onClick={() => toggleView('preview')}
@@ -645,7 +645,7 @@ export default function PostProblem() {
                     Preview
                   </Button>
                   
-                  <Button
+                  <Button style={{ cursor: 'pointer' }} 
                     type="submit"
                     disabled={isSubmitting}
                   >

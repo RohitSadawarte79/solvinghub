@@ -50,13 +50,13 @@ export default function Navbar() {
               <AvatarImage src={user?.photoURL || ''} />
               <AvatarFallback>{user?.displayName?.[0] || 'U'}</AvatarFallback>
             </Avatar>
-            <Button variant="outline" onClick={handleLogout}>
+            <Button style={{ cursor: 'pointer' }} variant="outline" onClick={handleLogout}>
               Logout
             </Button>
           </div>
         ) : (
             <Link href="/login">
-            <Button>Login</Button>
+            <Button style={{ cursor: 'pointer' }} variant="outline" >Login</Button>
           </Link>
         )}
       </div>

@@ -23,7 +23,7 @@ export default function LoginPage() {
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider)
-      router.push('/dashboard')
+      router.push('/home')
     } catch (error) {
       console.error("Authentication failed:", error);
     }

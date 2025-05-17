@@ -268,7 +268,7 @@ export default function DiscoverProblems() {
             </div>
           </div>
           <Link href="/post" passHref>
-            <Button 
+            <Button style={{ cursor: 'pointer' }}
               className="mt-4 md:mt-0"
               onClick={handleCreateProblem}
             >
@@ -291,7 +291,7 @@ export default function DiscoverProblems() {
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline">
+                <Button style={{ cursor: 'pointer' }} variant="outline">
                   <Filter className="mr-2 h-4 w-4" /> Filter
                 </Button>
               </DropdownMenuTrigger>
@@ -310,7 +310,7 @@ export default function DiscoverProblems() {
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline">
+                <Button style={{ cursor: 'pointer' }} variant="outline">
                   Sort by <ChevronDown className="ml-2 h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -336,7 +336,7 @@ export default function DiscoverProblems() {
                   className="inline-flex items-center px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-sm"
                 >
                   {category}
-                  <button 
+                  <button style={{ cursor: 'pointer' }}
                     className="ml-2 text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100"
                     onClick={() => handleCategoryToggle(category)}
                   >
@@ -344,7 +344,7 @@ export default function DiscoverProblems() {
                   </button>
                 </div>
               ))}
-              <button 
+              <button style={{ cursor: 'pointer' }}
                 className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
                 onClick={() => setSelectedCategories([])}
               >
@@ -376,7 +376,7 @@ export default function DiscoverProblems() {
         ) : error ? (
           <div className="text-center py-12">
             <p className="text-red-500 dark:text-red-400">{error}</p>
-            <Button 
+            <Button style={{ cursor: 'pointer' }}
               variant="outline" 
               className="mt-4"
               onClick={fetchProblems}
@@ -435,7 +435,7 @@ export default function DiscoverProblems() {
                               <Clock className="h-4 w-4 mr-1" /> {problem.createdAt}
                             </div>
                           </div>
-                          <Button variant="ghost" size="sm" className="text-blue-600">
+                          <Button style={{ cursor: 'pointer' }} variant="ghost" size="sm" className="text-blue-600">
                             View Details
                           </Button>
                         </CardFooter>
@@ -446,7 +446,7 @@ export default function DiscoverProblems() {
               ) : (
                 <div className="text-center py-12">
                   <p className="text-slate-600 dark:text-slate-300">No problems match your current filters.</p>
-                  <Button 
+                  <Button style={{ cursor: 'pointer' }}
                     variant="outline" 
                     className="mt-4"
                     onClick={() => {
@@ -520,7 +520,7 @@ export default function DiscoverProblems() {
                               <span className="text-xs text-slate-500">Replies</span>
                             </div>
                             
-                            <Button className="bg-blue-600 hover:bg-blue-700 w-full">
+                            <Button style={{ cursor: 'pointer' }} className="bg-blue-600 hover:bg-blue-700 w-full">
                               View
                             </Button>
                           </div>
@@ -532,7 +532,7 @@ export default function DiscoverProblems() {
               ) : (
                 <div className="text-center py-12">
                   <p className="text-slate-600 dark:text-slate-300">No problems match your current filters.</p>
-                  <Button 
+                  <Button style={{ cursor: 'pointer' }}
                     variant="outline" 
                     className="mt-4"
                     onClick={() => {

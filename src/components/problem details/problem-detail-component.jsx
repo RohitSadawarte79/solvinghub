@@ -590,7 +590,7 @@ export default function ProblemDetail({ params }) {
           </div>
 
           <div className="flex gap-4">
-            <Button
+            <Button style={{ cursor: 'pointer' }}
               variant={userVotes.problem ? "default" : "outline"}
               className="flex items-center gap-2"
               onClick={handleVoteProblem}
@@ -633,7 +633,7 @@ export default function ProblemDetail({ params }) {
                   </p>
                 )}
                 <div className="flex justify-end">
-                  <Button type="submit" disabled={!auth.currentUser || !commentText.trim()}>
+                  <Button style={{ cursor: 'pointer' }} type="submit" disabled={!auth.currentUser || !commentText.trim()}>
                     Post Comment
                   </Button>
                 </div>
@@ -669,7 +669,7 @@ export default function ProblemDetail({ params }) {
                           </div>
                         </div>
                         {auth.currentUser && comment.authorId === auth.currentUser.uid && (
-                          <Button 
+                          <Button style={{ cursor: 'pointer' }}
                             variant="ghost" 
                             size="sm" 
                             onClick={() => handleDeleteComment(comment.id)}
@@ -686,7 +686,7 @@ export default function ProblemDetail({ params }) {
                       {/* Reply button and comments */}
                       <div className="mt-4">
                         <div className="flex items-center gap-2 mt-2">
-                          <Button 
+                          <Button style={{ cursor: 'pointer' }}
                             variant="ghost" 
                             size="sm" 
                             className="text-slate-500"
@@ -713,7 +713,7 @@ export default function ProblemDetail({ params }) {
                               })}
                               disabled={!auth.currentUser}
                             />
-                            <Button 
+                            <Button style={{ cursor: 'pointer' }}
                               size="sm"
                               onClick={() => handleReplySubmit(comment.id, replyText[comment.id])}
                               disabled={!auth.currentUser || !replyText[comment.id]?.trim()}
