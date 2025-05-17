@@ -255,7 +255,7 @@ export default function MyProblems() {
           </Tabs>
           
           <div className="mt-6 flex justify-center">
-            <Link href="/problems/post">
+            <Link href="/post">
               <Button style={{ cursor: 'pointer' }} >Post New Problem</Button>
             </Link>
           </div>
