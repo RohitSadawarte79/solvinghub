@@ -22,7 +22,7 @@ export default function Navbar() {
   }
 
   return (
-    <nav className="fixed w-full px-6 py-4 flex justify-between items-center shadow-sm border-b bg-white">
+    <nav className="fixed top-0 left-0 w-full px-6 py-4 flex justify-between items-center shadow-sm border-b bg-white z-50">
       {/* Left: Logo + Navigation Links */}
       <div className="flex items-center gap-6">
         <Link href="/" className="text-xl font-bold text-black font">

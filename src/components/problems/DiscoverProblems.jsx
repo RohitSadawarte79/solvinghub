@@ -1,7 +1,7 @@
 "use client"; // For Next.js client components
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { 
   Card, 
@@ -56,6 +56,7 @@ import { app } from '@/lib/firebase'; // Import the Firebase app instance
 
 export default function DiscoverProblems() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   //const { toast } = useToast();
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -77,8 +78,22 @@ export default function DiscoverProblems() {
     { label: "Newest", value: "timestamp" },
     { label: "Alphabetical", value: "title" }
   ];
+  
   // Get Firestore instance
   const db = getFirestore(app);
+  
+  // Initialize search query from URL parameters
+  useEffect(() => {
+    const search = searchParams.get('search');
+    if (search) {
+      setSearchQuery(search);
+    }
+    
+    const sort = searchParams.get('sort');
+    if (sort && sortOptions.some(option => option.value === sort)) {
+      setSortBy(sort);
+    }
+  }, [searchParams]);
   
   // Define fetchProblems function before using it
   const fetchProblems = async () => {
@@ -192,6 +207,29 @@ export default function DiscoverProblems() {
   
   const handleSortChange = (value) => {
     setSortBy(value);
+    
+    // Update URL to reflect the sorting option without page reload
+    const newParams = new URLSearchParams(searchParams.toString());
+    newParams.set('sort', value);
+    
+    // Use router.replace to update URL without adding to history stack
+    router.replace(`/discover?${newParams.toString()}`);
+  };
+  
+  // Handle search submission - update URL and state
+  const handleSearch = (e) => {
+    e.preventDefault();
+    
+    // Update URL to reflect the search
+    const newParams = new URLSearchParams(searchParams.toString());
+    if (searchQuery) {
+      newParams.set('search', searchQuery);
+    } else {
+      newParams.delete('search');
+    }
+    
+    // Use router.replace to update URL without adding to history stack
+    router.replace(`/discover?${newParams.toString()}`);
   };
   
   const handleCreateProblem = () => {
@@ -277,7 +315,7 @@ export default function DiscoverProblems() {
           </Link>
         </div>
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-4 mb-8">
-          <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4 mb-6">
             <div className="relative flex-grow">
               <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
               <input 
@@ -288,6 +326,10 @@ export default function DiscoverProblems() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
+            
+            <Button style={{ cursor: 'pointer' }} type="submit" variant="outline">
+              <Search className="mr-2 h-4 w-4" /> Search
+            </Button>
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -325,7 +367,7 @@ export default function DiscoverProblems() {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
+          </form>
           
           {/* Active filters */}
           {selectedCategories.length > 0 && (
@@ -394,16 +436,16 @@ export default function DiscoverProblems() {
                     <Link 
                       href={`/problems/${problem.id}`} 
                       key={problem.id}
-                      className="block no-underline"
+                      className="block no-underline h-full"
                     >
                       <Card 
-                        className="cursor-pointer hover:shadow-md transition h-full border border-slate-200 dark:border-slate-700 hover:border-blue-400"
+                        className="cursor-pointer hover:shadow-md transition h-full border border-slate-200 dark:border-slate-700 hover:border-blue-400 flex flex-col"
                         tabIndex={0}
                         onKeyDown={(e) => handleKeyDown(e, problem.id)}
                         role="button"
                         aria-label={`View details for ${problem.title}`}
                       >
-                        <CardHeader>
+                        <CardHeader className="pb-2">
                           <div className="flex justify-between items-start">
                             <div className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 rounded text-xs">
                               {problem.category}
@@ -412,21 +454,26 @@ export default function DiscoverProblems() {
                               <TrendingUp className="h-4 w-4 mr-1" /> {problem.votes}
                             </div>
                           </div>
-                          <CardTitle className="mt-3">{problem.title}</CardTitle>
+                          <CardTitle className="mt-3 line-clamp-1">{problem.title}</CardTitle>
                           <CardDescription className="mt-2 line-clamp-2">
                             {problem.description}
                           </CardDescription>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="pb-2 flex-grow">
                           <div className="flex flex-wrap gap-2">
-                            {problem.tags && problem.tags.map((tag, index) => (
+                            {problem.tags && problem.tags.slice(0, 3).map((tag, index) => (
                               <span key={index} className="inline-block px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full text-xs">
                                 {tag}
                               </span>
                             ))}
+                            {problem.tags && problem.tags.length > 3 && (
+                              <span className="inline-block px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full text-xs">
+                                +{problem.tags.length - 3} more
+                              </span>
+                            )}
                           </div>
                         </CardContent>
-                        <CardFooter className="flex justify-between border-t border-slate-200 dark:border-slate-700 pt-4">
+                        <CardFooter className="flex justify-between border-t border-slate-200 dark:border-slate-700 pt-4 mt-auto">
                           <div className="flex items-center text-sm text-slate-500">
                             <div className="flex items-center mr-4">
                               <MessageSquare className="h-4 w-4 mr-1" /> {problem.discussions || 0}
@@ -436,7 +483,7 @@ export default function DiscoverProblems() {
                             </div>
                           </div>
                           <Button style={{ cursor: 'pointer' }} variant="ghost" size="sm" className="text-blue-600">
-                            View Details
+                            View
                           </Button>
                         </CardFooter>
                       </Card>
@@ -452,6 +499,8 @@ export default function DiscoverProblems() {
                     onClick={() => {
                       setSearchQuery('');
                       setSelectedCategories([]);
+                      // Also clear URL parameters
+                      router.replace('/discover');
                     }}
                   >
                     Reset Filters
@@ -490,20 +539,25 @@ export default function DiscoverProblems() {
                               </div>
                             </div>
                             
-                            <h3 className="text-xl font-semibold mb-2 text-slate-900 dark:text-slate-50">
+                            <h3 className="text-xl font-semibold mb-2 text-slate-900 dark:text-slate-50 line-clamp-1">
                               {problem.title}
                             </h3>
                             
-                            <p className="text-slate-600 dark:text-slate-300 mb-3">
+                            <p className="text-slate-600 dark:text-slate-300 mb-3 line-clamp-2">
                               {problem.description}
                             </p>
                             
                             <div className="flex flex-wrap gap-2 mb-3">
-                              {problem.tags && problem.tags.map((tag, index) => (
+                              {problem.tags && problem.tags.slice(0, 4).map((tag, index) => (
                                 <span key={index} className="inline-block px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full text-xs">
                                   {tag}
                                 </span>
                               ))}
+                              {problem.tags && problem.tags.length > 4 && (
+                                <span className="inline-block px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full text-xs">
+                                  +{problem.tags.length - 4} more
+                                </span>
+                              )}
                             </div>
                           </div>
                           
@@ -538,6 +592,8 @@ export default function DiscoverProblems() {
                     onClick={() => {
                       setSearchQuery('');
                       setSelectedCategories([]);
+                      // Also clear URL parameters
+                      router.replace('/discover');
                     }}
                   >
                     Reset Filters

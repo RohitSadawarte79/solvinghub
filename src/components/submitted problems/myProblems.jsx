@@ -108,7 +108,7 @@ export default function MyProblems() {
   };
 
   const handleEdit = (id) => {
-    router.push(`/problems/edit/${id}`);
+    router.push(`/edit/${id}`);
   };
 
   const filteredProblems = () => {

@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Card, 
   CardContent, 
@@ -27,36 +27,201 @@ import {
   Filter,
   CheckCircle
 } from 'lucide-react';
+import { toast } from "sonner";
+import { db } from '@/lib/firebase';
+import { collection, getDocs, query, orderBy, limit, where } from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
 
 export default function WelcomePage() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [problems, setProblems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('trending');
   
   const categories = [
     "Education", "Technology", "Health", "Environment", 
-    "Agriculture", "Transportation", "Finance", "Social"
+    "Food & Agriculture", "Transportation", "Finance", "Social"
   ];
   
-  const featuredProblems = [
-    {
-      title: "Inefficient waste management in urban areas",
-      category: "Environment",
-      votes: 142,
-      discussions: 27
-    },
-    {
-      title: "Limited access to quality education in rural communities",
-      category: "Education",
-      votes: 98,
-      discussions: 19
-    },
-    {
-      title: "Mental health resources for college students",
-      category: "Health",
-      votes: 87,
-      discussions: 31
+  // Fetch problems from Firebase based on tab selection
+  useEffect(() => {
+    const fetchProblems = async () => {
+      setLoading(true);
+      try {
+        let problemsQuery;
+        
+        switch (activeTab) {
+          case 'trending':
+            problemsQuery = query(
+              collection(db, "problems"),
+              orderBy("votes", "desc"),
+              limit(3)
+            );
+            break;
+          case 'recent':
+            problemsQuery = query(
+              collection(db, "problems"),
+              orderBy("timestamp", "desc"),
+              limit(3)
+            );
+            break;
+          case 'most-discussed':
+            problemsQuery = query(
+              collection(db, "problems"),
+              orderBy("discussions", "desc"),
+              limit(3)
+            );
+            break;
+          default:
+            problemsQuery = query(
+              collection(db, "problems"),
+              orderBy("votes", "desc"),
+              limit(3)
+            );
+        }
+        
+        // Apply category filter if selected
+        if (selectedCategory) {
+          problemsQuery = query(
+            collection(db, "problems"),
+            where("category", "==", selectedCategory),
+            orderBy(activeTab === 'recent' ? "timestamp" : 
+                   activeTab === 'most-discussed' ? "discussions" : "votes", "desc"),
+            limit(3)
+          );
+        }
+        
+        const querySnapshot = await getDocs(problemsQuery);
+        const problemsList = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        setProblems(problemsList);
+      } catch (error) {
+        console.error("Error fetching problems:", error);
+        toast({
+          title: "Failed to load problems",
+          description: "There was an error loading problems. Please try again later.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchProblems();
+  }, [activeTab, selectedCategory]);
+  
+  // Handle search functionality - redirect to discover page with search term
+  const handleSearch = (e) => {
+    e.preventDefault();
+    
+    if (!searchTerm.trim()) return;
+    
+    // Redirect to the discover problems page with the search term
+    router.push(`/discover?search=${encodeURIComponent(searchTerm)}`);
+  };
+  
+  // Handle filter by category
+  const handleCategoryFilter = (category) => {
+    setSelectedCategory(category === selectedCategory ? '' : category);
+  };
+  
+  // Handle email subscription
+  const handleSubscribe = (e) => {
+    e.preventDefault();
+    
+    if (!email.trim() || !email.includes('@')) {
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address.",
+        variant: "destructive"
+      });
+      return;
     }
-  ];
-  
+    
+    // Here you would typically send this to your backend/Firebase
+    // For now, we'll just show a success message
+    toast({
+      title: "Subscription Successful",
+      description: "Thank you for subscribing to our newsletter!"
+    });
+    
+    setEmail('');
+  };
+
+  // Render a problem card with consistent sizing
+  const renderLoadingCard = () => (
+    <Card className="border border-slate-200 dark:border-slate-700 h-64">
+      <CardHeader>
+        <div className="h-4 w-20 bg-slate-200 dark:bg-slate-700 rounded animate-pulse mb-3"></div>
+        <div className="h-6 w-full bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+      </CardHeader>
+      <CardFooter className="border-t border-slate-200 dark:border-slate-700 pt-4">
+        <div className="h-4 w-24 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+      </CardFooter>
+    </Card>
+  );
+
+  const renderProblemDetails = (problem) => (
+    <>
+      <div className="flex justify-between items-start">
+        <div className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 rounded text-xs">
+          {problem.category}
+        </div>
+        <div className="flex items-center text-sm text-slate-500">
+          {activeTab === 'trending' && (
+            <><TrendingUp className="h-4 w-4 mr-1" /> {problem.votes || 0}</>
+          )}
+          {activeTab === 'recent' && (
+            <>{problem.createdAt}</>
+          )}
+          {activeTab === 'most-discussed' && (
+            <><MessageSquare className="h-4 w-4 mr-1" /> {problem.discussions || 0}</>
+          )}
+        </div>
+      </div>
+      <CardTitle className="mt-3 text-lg">{problem?.title}</CardTitle>
+      <CardDescription className="mt-2 line-clamp-2">
+        {problem?.description}
+      </CardDescription>
+    </>
+  );
+
+  const renderProblemCard = (problem, loading = false) => {
+    if (loading) {
+      return renderLoadingCard();
+    }
+
+    return (
+      <Card className="border border-slate-200 dark:border-slate-700 hover:border-blue-400 transition-colors cursor-pointer h-full flex flex-col" key={problem?.id}>
+        <CardHeader>
+          {renderProblemDetails(problem)}
+        </CardHeader>
+        <CardFooter className="flex justify-between border-t border-slate-200 dark:border-slate-700 pt-4">
+          <div className="flex items-center text-sm text-slate-500">
+            {activeTab === 'trending' && (
+              <><MessageSquare className="h-4 w-4 mr-1" /> {problem.discussions || 0} discussions</>
+            )}
+            {activeTab === 'recent' && (
+              <><MessageSquare className="h-4 w-4 mr-1" /> {problem.discussions || 0} discussions</>
+            )}
+            {activeTab === 'most-discussed' && (
+              <><TrendingUp className="h-4 w-4 mr-1" /> {problem.votes || 0} votes</>
+            )}
+          </div>
+          <div className="text-blue-600 text-sm font-medium">
+            View Details
+          </div>
+        </CardFooter>
+      </Card>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
       <div className="container mx-auto px-4 py-8">
@@ -78,38 +243,48 @@ export default function WelcomePage() {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4">
-          <Link href="/discover">
-            <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
-              Discover Problems <ArrowUpRight className="ml-2 h-4 w-4" />
-            </Button>
+            <Link href="/discover">
+              <Button style={{ cursor: 'pointer' }} size="lg" className="bg-blue-600 hover:bg-blue-700">
+                Discover Problems <ArrowUpRight className="ml-2 h-4 w-4" />
+              </Button>
             </Link>
-            <Link href="/post">
-            <Button size="lg" variant="outline">
-              Submit a Problem
-            </Button>
+            <Link href="/submit">
+              <Button style={{ cursor: 'pointer' }} size="lg" variant="outline">
+                Submit a Problem
+              </Button>
             </Link>
           </div>
         </div>
-
+        
         {/* Search and Filter */}
-        <div className="mb-12">
-          <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <div>
+          <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4 mb-6 p-4">
             <div className="relative flex-grow">
               <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
               <input 
                 type="text" 
                 placeholder="Search for problems..." 
                 className="pl-10 flex h-12 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <Button variant="outline" className="h-12">
-              <Filter className="mr-2 h-4 w-4" /> Filter
+            <Button style={{ cursor: 'pointer' }} type="submit" variant="outline" className="h-12">
+              <Search className="mr-2 h-4 w-4" /> Search
             </Button>
-          </div>
+          </form>
           
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 p-4">
             {categories.map((category) => (
-              <div key={category} className="inline-block px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full text-sm">
+              <div 
+                key={category} 
+                className={`inline-block px-3 py-1 rounded-full text-sm cursor-pointer transition-colors ${
+                  selectedCategory === category 
+                    ? 'bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-300' 
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                }`}
+                onClick={() => handleCategoryFilter(category)}
+              >
                 {category}
               </div>
             ))}
@@ -167,7 +342,7 @@ export default function WelcomePage() {
             Featured Problems
           </h2>
           
-          <Tabs defaultValue="trending">
+          <Tabs defaultValue="trending" value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-6">
               <TabsTrigger value="trending">Trending</TabsTrigger>
               <TabsTrigger value="recent">Recent</TabsTrigger>
@@ -175,43 +350,102 @@ export default function WelcomePage() {
             </TabsList>
             
             <TabsContent value="trending">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {featuredProblems.map((problem, index) => (
-                  <Card key={index} className="border border-slate-200 dark:border-slate-700 hover:border-blue-400 transition-colors">
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <div className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 rounded text-xs">
-                          {problem.category}
-                        </div>
-                        <div className="flex items-center text-sm text-slate-500">
-                          <TrendingUp className="h-4 w-4 mr-1" /> {problem.votes}
-                        </div>
-                      </div>
-                      <CardTitle className="mt-3">{problem.title}</CardTitle>
-                    </CardHeader>
-                    <CardFooter className="flex justify-between border-t border-slate-200 dark:border-slate-700 pt-4">
-                      <div className="flex items-center text-sm text-slate-500">
-                        <MessageSquare className="h-4 w-4 mr-1" /> {problem.discussions} discussions
-                      </div>
-                      <Button variant="ghost" size="sm" className="text-blue-600">
-                        View Details
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                ))}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {loading ? (
+                  // Show loading indicators with consistent height
+                  Array(3).fill(0).map((_, index) => (
+                    <div key={index} className="h-full">
+                      {renderProblemCard(null, true)}
+                    </div>
+                  ))
+                ) : problems.length > 0 ? (
+                  problems.map((problem) => (
+                    <div key={problem.id} className="h-full">
+                      {renderProblemCard(problem)}
+                    </div>
+                  ))
+                ) : (
+                  <div className="col-span-3 flex items-center justify-center p-12 text-slate-500">
+                    <p>No problems found. {selectedCategory && "Try removing the category filter."}</p>
+                  </div>
+                )}
               </div>
+              
+              {problems.length > 0 && (
+                <div className="flex justify-center mt-8">
+                  <Link href="/discover">
+                    <Button style={{ cursor: 'pointer' }} variant="outline">
+                      View All Problems <ArrowUpRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </Link>
+                </div>
+              )}
             </TabsContent>
             
             <TabsContent value="recent">
-              <div className="flex items-center justify-center p-8 text-slate-500">
-                <p>Switch to the Trending tab to see featured problems</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {loading ? (
+                  // Show loading indicators with consistent height
+                  Array(3).fill(0).map((_, index) => (
+                    <div key={index} className="h-full">
+                      {renderProblemCard(null, true)}
+                    </div>
+                  ))
+                ) : problems.length > 0 ? (
+                  problems.map((problem) => (
+                    <div key={problem.id} className="h-full">
+                      {renderProblemCard(problem)}
+                    </div>
+                  ))
+                ) : (
+                  <div className="col-span-3 flex items-center justify-center p-12 text-slate-500">
+                    <p>No problems found. {selectedCategory && "Try removing the category filter."}</p>
+                  </div>
+                )}
               </div>
+              
+              {problems.length > 0 && (
+                <div className="flex justify-center mt-8">
+                  <Link href="/discover?sort=recent">
+                    <Button style={{ cursor: 'pointer' }} variant="outline">
+                      View All Recent Problems <ArrowUpRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </Link>
+                </div>
+              )}
             </TabsContent>
             
             <TabsContent value="most-discussed">
-              <div className="flex items-center justify-center p-8 text-slate-500">
-                <p>Switch to the Trending tab to see featured problems</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {loading ? (
+                  // Show loading indicators with consistent height
+                  Array(3).fill(0).map((_, index) => (
+                    <div key={index} className="h-full">
+                      {renderProblemCard(null, true)}
+                    </div>
+                  ))
+                ) : problems.length > 0 ? (
+                  problems.map((problem) => (
+                    <div key={problem.id} className="h-full">
+                      {renderProblemCard(problem)}
+                    </div>
+                  ))
+                ) : (
+                  <div className="col-span-3 flex items-center justify-center p-12 text-slate-500">
+                    <p>No problems found. {selectedCategory && "Try removing the category filter."}</p>
+                  </div>
+                )}
               </div>
+              
+              {problems.length > 0 && (
+                <div className="flex justify-center mt-8">
+                  <Link href="/discover?sort=most-discussed">
+                    <Button style={{ cursor: 'pointer' }} variant="outline">
+                      View All Most Discussed Problems <ArrowUpRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </Link>
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </div>
@@ -272,18 +506,19 @@ export default function WelcomePage() {
             <CardDescription>Get notified about new problem statements and platform updates.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col sm:flex-row gap-4">
+            <form onSubmit={handleSubscribe} className="flex flex-col sm:flex-row gap-4">
               <input
                 type="email"
                 placeholder="Enter your email"
                 className="flex h-10 w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                required
               />
-              <Button className="bg-blue-600 hover:bg-blue-700">
+              <Button style={{ cursor: 'pointer' }} type="submit" className="bg-blue-600 hover:bg-blue-700">
                 Subscribe
               </Button>
-            </div>
+            </form>
           </CardContent>
         </Card>
         
@@ -294,9 +529,9 @@ export default function WelcomePage() {
               © 2025 SolvingHub. All rights reserved. Created by Rohit Sadawarte, Rohit Singh, Rajnish Malviya, Ritik Pawar.
             </p>
             <div className="flex space-x-4">
-              <Button variant="ghost" size="sm">About</Button>
-              <Button variant="ghost" size="sm">Contact</Button>
-              <Button variant="ghost" size="sm">FAQ</Button>
+              <Button style={{ cursor: 'pointer' }} variant="ghost" size="sm">About</Button>
+              <Button style={{ cursor: 'pointer' }} variant="ghost" size="sm">Contact</Button>
+              <Button style={{ cursor: 'pointer' }} variant="ghost" size="sm">FAQ</Button>
             </div>
           </div>
         </footer>
