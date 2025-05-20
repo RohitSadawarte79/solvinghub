@@ -1,7 +1,10 @@
-"use client";
-
-import DiscoverProblems from "@/components/problems/DiscoverProblems";
+import React, { Suspense } from 'react';
+import DiscoverProblems from '@/components/problems/DiscoverProblems';
 
 export default function DiscoverPage() {
-  return <DiscoverProblems />;
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <DiscoverProblems />
+    </Suspense>
+  );
 }
