@@ -58,7 +58,8 @@ import {
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 
 export default function EditProblem({ params }) {
-  const { id: problemId } = React.use(params);
+  const unwrappedParams = React.use(params);
+  const { id: problemId } = unwrappedParams;
   const router = useRouter();
   const methods = useForm();
   

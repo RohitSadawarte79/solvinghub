@@ -492,7 +492,6 @@ export default function ProblemDetail({ params }) {
       
       // Add comment deletion to the batch
       batch.delete(commentRef);
-      batch.delete(commentRef);
       
       // Commit the batch
       await batch.commit();
@@ -519,17 +518,17 @@ export default function ProblemDetail({ params }) {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="flex justify-center items-center min-h-[50vh]">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex justify-center items-center min-h-screen flex-col gap-4">
-        <AlertCircle className="h-12 w-12 text-red-500" />
-        <h1 className="text-2xl font-bold">{error}</h1>
+      <div className="flex justify-center items-center min-h-[50vh] flex-col gap-4 px-4">
+        <AlertCircle className="h-10 w-10 text-red-500" />
+        <h1 className="text-xl md:text-2xl font-bold text-center">{error}</h1>
       </div>
     );
   }
@@ -539,35 +538,35 @@ export default function ProblemDetail({ params }) {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <Card className="mb-8">
-        <CardHeader>
+    <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 lg:py-8 max-w-5xl">
+      <Card className="mb-6 md:mb-8 shadow-sm">
+        <CardHeader className="px-4 sm:px-6 py-4 sm:py-5">
           <div className="flex flex-col gap-2">
-            <CardTitle className="text-2xl font-bold">{problem.title}</CardTitle>
-            <CardDescription className="text-sm flex items-center gap-2">
+            <CardTitle className="text-xl sm:text-2xl font-bold break-words">{problem.title}</CardTitle>
+            <CardDescription className="text-xs sm:text-sm flex flex-wrap items-center gap-1 sm:gap-2">
               <span>Posted {problem.createdAt}</span>
-              <span>•</span>
+              <span className="hidden xs:inline">•</span>
               <span>{problem.votes} votes</span>
-              <span>•</span>
+              <span className="hidden xs:inline">•</span>
               <span>{problem.discussions} comments</span>
             </CardDescription>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 sm:px-6 pb-5">
           <div className="mb-6">
-            <h3 className="font-semibold mb-2">Description</h3>
-            <p className="text-slate-700 dark:text-slate-200 whitespace-pre-wrap">
+            <h3 className="font-semibold mb-2 text-sm sm:text-base">Description</h3>
+            <p className="text-sm sm:text-base text-slate-700 dark:text-slate-200 whitespace-pre-wrap">
               {problem.description}
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-4 mb-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base font-medium">Impacts</CardTitle>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            <Card className="shadow-sm">
+              <CardHeader className="py-3 px-4">
+                <CardTitle className="text-sm sm:text-base font-medium">Impacts</CardTitle>
               </CardHeader>
-              <CardContent>
-                <ul className="list-disc pl-5 space-y-2">
+              <CardContent className="py-2 px-4">
+                <ul className="list-disc pl-5 space-y-1 sm:space-y-2 text-sm sm:text-base">
                   {problem.impacts && problem.impacts.map((impact, index) => (
                     <li key={index} className="text-slate-700 dark:text-slate-200">{impact}</li>
                   ))}
@@ -575,12 +574,12 @@ export default function ProblemDetail({ params }) {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base font-medium">Challenges</CardTitle>
+            <Card className="shadow-sm">
+              <CardHeader className="py-3 px-4">
+                <CardTitle className="text-sm sm:text-base font-medium">Challenges</CardTitle>
               </CardHeader>
-              <CardContent>
-                <ul className="list-disc pl-5 space-y-2">
+              <CardContent className="py-2 px-4">
+                <ul className="list-disc pl-5 space-y-1 sm:space-y-2 text-sm sm:text-base">
                   {problem.challenges && problem.challenges.map((challenge, index) => (
                     <li key={index} className="text-slate-700 dark:text-slate-200">{challenge}</li>
                   ))}
@@ -590,50 +589,58 @@ export default function ProblemDetail({ params }) {
           </div>
 
           <div className="flex gap-4">
-            <Button style={{ cursor: 'pointer' }}
+            <Button 
+              style={{ cursor: 'pointer' }}
               variant={userVotes.problem ? "default" : "outline"}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 text-sm"
               onClick={handleVoteProblem}
+              size="sm"
             >
-              <ThumbsUp className={`h-5 w-5 ${userVotes.problem ? 'fill-white' : ''}`} />
-              {userVotes.problem ? "Upvoted" : "Upvote"}
+              <ThumbsUp className={`h-4 w-4 ${userVotes.problem ? 'fill-white' : ''}`} />
+              <span className="hidden xs:inline">{userVotes.problem ? "Upvoted" : "Upvote"}</span>
             </Button>
           </div>
         </CardContent>
       </Card>
 
       {/* Tabs for Discussion and Solutions */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
-        <TabsList className="mb-4">
-          <TabsTrigger value="discussion">Discussion ({problem.discussions})</TabsTrigger>
-          <TabsTrigger value="solutions">Proposed Solutions</TabsTrigger>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6 md:mb-8">
+        <TabsList className="mb-4 w-full justify-start overflow-x-auto no-scrollbar">
+          <TabsTrigger value="discussion" className="text-sm">Discussion ({problem.discussions})</TabsTrigger>
+          <TabsTrigger value="solutions" className="text-sm">Proposed Solutions</TabsTrigger>
         </TabsList>
 
         <TabsContent value="discussion">
           {/* Add Comment */}
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold">Join the Discussion</CardTitle>
-              <CardDescription>
+          <Card className="mb-6 shadow-sm">
+            <CardHeader className="py-3 px-4 sm:px-6">
+              <CardTitle className="text-base sm:text-lg font-semibold">Join the Discussion</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
                 Share your thoughts, questions, or insights about this problem.
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-4 sm:px-6 pb-5">
               <form onSubmit={handleSubmitComment}>
                 <Textarea
                   placeholder="Write your comment here..."
-                  className="min-h-24 mb-4"
+                  className="min-h-20 md:min-h-24 mb-4 text-sm sm:text-base"
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
                   disabled={!auth.currentUser}
                 />
                 {!auth.currentUser && (
-                  <p className="text-sm text-amber-600 dark:text-amber-400 mb-4">
+                  <p className="text-xs sm:text-sm text-amber-600 dark:text-amber-400 mb-4">
                     Please log in to join the discussion.
                   </p>
                 )}
                 <div className="flex justify-end">
-                  <Button style={{ cursor: 'pointer' }} type="submit" disabled={!auth.currentUser || !commentText.trim()}>
+                  <Button 
+                    style={{ cursor: 'pointer' }} 
+                    type="submit" 
+                    disabled={!auth.currentUser || !commentText.trim()}
+                    size="sm"
+                    className="text-xs sm:text-sm"
+                  >
                     Post Comment
                   </Button>
                 </div>
@@ -642,70 +649,72 @@ export default function ProblemDetail({ params }) {
           </Card>
 
           {/* Comments Section */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {loadingComments ? (
-              <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <div className="flex justify-center py-6 sm:py-8">
+                <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-600"></div>
               </div>
             ) : comments.length === 0 ? (
-              <div className="py-8 text-center text-slate-500">
+              <div className="py-6 sm:py-8 text-center text-slate-500 text-sm sm:text-base">
                 No comments yet. Be the first to share your thoughts!
               </div>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 {/* Map through comments and render them */}
                 {comments.map(comment => (
-                  <Card key={comment.id} className="mb-4">
-                    <CardHeader>
+                  <Card key={comment.id} className="mb-3 sm:mb-4 shadow-sm">
+                    <CardHeader className="py-3 px-4 sm:px-6">
                       <div className="flex justify-between items-start">
                         <div className="flex items-center gap-2">
-                          <Avatar>
+                          <Avatar className="h-7 w-7 sm:h-8 sm:w-8">
                             <AvatarImage src={comment.authorPhotoURL} />
                             <AvatarFallback>{comment.authorName?.charAt(0) || 'A'}</AvatarFallback>
                           </Avatar>
                           <div>
-                            <p className="font-medium">{comment.authorName}</p>
+                            <p className="font-medium text-sm sm:text-base">{comment.authorName}</p>
                             <p className="text-xs text-slate-500">{comment.createdAt}</p>
                           </div>
                         </div>
                         {auth.currentUser && comment.authorId === auth.currentUser.uid && (
-                          <Button style={{ cursor: 'pointer' }}
+                          <Button 
+                            style={{ cursor: 'pointer' }}
                             variant="ghost" 
                             size="sm" 
                             onClick={() => handleDeleteComment(comment.id)}
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50 text-xs p-1 sm:p-2"
                           >
                             Delete
                           </Button>
                         )}
                       </div>
                     </CardHeader>
-                    <CardContent>
-                      <p className="whitespace-pre-wrap">{comment.text}</p>
+                    <CardContent className="px-4 sm:px-6 py-2 pb-4">
+                      <p className="whitespace-pre-wrap text-sm sm:text-base">{comment.text}</p>
                       
                       {/* Reply button and comments */}
-                      <div className="mt-4">
+                      <div className="mt-3 sm:mt-4">
                         <div className="flex items-center gap-2 mt-2">
-                          <Button style={{ cursor: 'pointer' }}
+                          <Button 
+                            style={{ cursor: 'pointer' }}
                             variant="ghost" 
                             size="sm" 
-                            className="text-slate-500"
+                            className="text-slate-500 text-xs sm:text-sm p-1 sm:p-2 h-auto"
                             onClick={() => setShowReplyBox({
                               ...showReplyBox, 
                               [comment.id]: !showReplyBox[comment.id]
                             })}
                           >
-                            <MessageSquare className="h-4 w-4 mr-1" />
+                            <MessageSquare className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                             Reply
                           </Button>
                         </div>
                         
                         {/* Reply form */}
                         {showReplyBox[comment.id] && (
-                          <div className="mt-4 pl-6 border-l-2 border-slate-200">
+                          <div className="mt-3 sm:mt-4 pl-3 sm:pl-6 border-l-2 border-slate-200">
                             <Textarea
                               placeholder="Write your reply..."
-                              className="min-h-20 mb-2"
+                              className="min-h-16 sm:min-h-20 mb-2 text-sm"
                               value={replyText[comment.id] || ''}
                               onChange={(e) => setReplyText({
                                 ...replyText,
@@ -713,10 +722,12 @@ export default function ProblemDetail({ params }) {
                               })}
                               disabled={!auth.currentUser}
                             />
-                            <Button style={{ cursor: 'pointer' }}
+                            <Button 
+                              style={{ cursor: 'pointer' }}
                               size="sm"
                               onClick={() => handleReplySubmit(comment.id, replyText[comment.id])}
                               disabled={!auth.currentUser || !replyText[comment.id]?.trim()}
+                              className="text-xs"
                             >
                               Post Reply
                             </Button>
@@ -725,18 +736,18 @@ export default function ProblemDetail({ params }) {
                         
                         {/* Replies */}
                         {comment.replies && comment.replies.length > 0 && (
-                          <div className="mt-4 pl-6 border-l-2 border-slate-200 space-y-4">
+                          <div className="mt-3 sm:mt-4 pl-3 sm:pl-6 border-l-2 border-slate-200 space-y-3 sm:space-y-4">
                             {comment.replies.map(reply => (
-                              <div key={reply.id} className="pb-2">
+                              <div key={reply.id} className="pb-1 sm:pb-2">
                                 <div className="flex items-center gap-2 mb-1">
-                                  <Avatar className="h-6 w-6">
+                                  <Avatar className="h-5 w-5 sm:h-6 sm:w-6">
                                     <AvatarImage src={reply.authorPhotoURL} />
                                     <AvatarFallback>{reply.authorName?.charAt(0) || 'A'}</AvatarFallback>
                                   </Avatar>
-                                  <span className="font-medium text-sm">{reply.authorName}</span>
+                                  <span className="font-medium text-xs sm:text-sm">{reply.authorName}</span>
                                   <span className="text-xs text-slate-500">{reply.createdAt}</span>
                                 </div>
-                                <p className="text-sm whitespace-pre-wrap">{reply.text}</p>
+                                <p className="text-xs sm:text-sm whitespace-pre-wrap">{reply.text}</p>
                               </div>
                             ))}
                           </div>
@@ -751,7 +762,7 @@ export default function ProblemDetail({ params }) {
         </TabsContent>
         
         <TabsContent value="solutions">
-          <div className="py-8 text-center text-slate-500">
+          <div className="py-6 sm:py-8 text-center text-slate-500 text-sm sm:text-base">
             Solutions feature coming soon.
           </div>
         </TabsContent>

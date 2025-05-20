@@ -44,7 +44,9 @@ import {
   ThumbsUp,
   Users,
   Clock,
-  PlusCircle
+  PlusCircle,
+  LayoutGrid,
+  List
 } from 'lucide-react';
 
 // Firebase imports
@@ -53,11 +55,9 @@ import { auth } from '@/lib/firebase';
 import { toast } from 'sonner';
 import { app } from '@/lib/firebase'; // Import the Firebase app instance
 
-
 export default function DiscoverProblems() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  //const { toast } = useToast();
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('votes');
@@ -65,6 +65,7 @@ export default function DiscoverProblems() {
   const [problems, setProblems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [viewMode, setViewMode] = useState('grid');
   const problemsPerPage = 6;
   
   const categories = [
@@ -93,6 +94,20 @@ export default function DiscoverProblems() {
     if (sort && sortOptions.some(option => option.value === sort)) {
       setSortBy(sort);
     }
+
+    // Set view mode based on screen size
+    const handleResize = () => {
+      if (window.innerWidth < 640) {
+        setViewMode('list');
+      }
+    };
+
+    // Initial check
+    handleResize();
+
+    // Listen for window resize
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, [searchParams]);
   
   // Define fetchProblems function before using it
@@ -273,7 +288,9 @@ export default function DiscoverProblems() {
   
   // Generate page numbers for pagination
   const getPageNumbers = () => {
-    const maxPagesToShow = 5; // Show at most 5 page numbers
+    // On mobile, show fewer pagination items
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+    const maxPagesToShow = isMobile ? 3 : 5;
     const pageNumbers = [];
 
     if (totalPages <= maxPagesToShow) {
@@ -294,28 +311,28 @@ export default function DiscoverProblems() {
   
   return (
     <div className="bg-slate-50 dark:bg-slate-900 min-h-screen">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-4 sm:py-8">
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start mb-8">
+        <div className="flex flex-col md:flex-row justify-between items-start mb-6 sm:mb-8">
           <div>
             <div>
-              <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-50 mb-2">Discover Problems</h1>
-              <p className="text-slate-600 dark:text-slate-300">
-                Browse through real-world problems submitted by our community and find opportunities to make an impact.
+              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-50 mb-2">Discover Problems</h1>
+              <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300">
+                Browse through real-world problems submitted by our community.
               </p>
             </div>
           </div>
           <Link href="/post" passHref>
             <Button style={{ cursor: 'pointer' }}
-              className="mt-4 md:mt-0"
+              className="mt-4 md:mt-0 w-full md:w-auto"
               onClick={handleCreateProblem}
             >
               <PlusCircle className="mr-2 h-4 w-4" /> Post a Problem
             </Button>
           </Link>
         </div>
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-4 mb-8">
-          <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4 mb-6">
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-3 sm:p-4 mb-6 sm:mb-8">
+          <form onSubmit={handleSearch} className="flex flex-col gap-3 mb-4 sm:mb-6">
             <div className="relative flex-grow">
               <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
               <input 
@@ -327,46 +344,48 @@ export default function DiscoverProblems() {
               />
             </div>
             
-            <Button style={{ cursor: 'pointer' }} type="submit" variant="outline">
-              <Search className="mr-2 h-4 w-4" /> Search
-            </Button>
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button style={{ cursor: 'pointer' }} variant="outline">
-                  <Filter className="mr-2 h-4 w-4" /> Filter
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56">
-                {categories.map((category) => (
-                  <DropdownMenuItem 
-                    key={category}
-                    onClick={() => handleCategoryToggle(category)}
-                    className={selectedCategories.includes(category) ? "bg-blue-50 dark:bg-blue-900" : ""}
-                  >
-                    {category}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button style={{ cursor: 'pointer' }} variant="outline">
-                  Sort by <ChevronDown className="ml-2 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                {sortOptions.map((option) => (
-                  <DropdownMenuItem 
-                    key={option.value}
-                    onClick={() => handleSortChange(option.value)}
-                  >
-                    {option.label}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="flex flex-wrap gap-2">
+              <Button style={{ cursor: 'pointer' }} type="submit" variant="outline" className="flex-grow sm:flex-grow-0">
+                <Search className="mr-2 h-4 w-4" /> Search
+              </Button>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button style={{ cursor: 'pointer' }} variant="outline" className="flex-grow sm:flex-grow-0">
+                    <Filter className="mr-2 h-4 w-4" /> Filter
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56">
+                  {categories.map((category) => (
+                    <DropdownMenuItem 
+                      key={category}
+                      onClick={() => handleCategoryToggle(category)}
+                      className={selectedCategories.includes(category) ? "bg-blue-50 dark:bg-blue-900" : ""}
+                    >
+                      {category}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button style={{ cursor: 'pointer' }} variant="outline" className="flex-grow sm:flex-grow-0">
+                    Sort by <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  {sortOptions.map((option) => (
+                    <DropdownMenuItem 
+                      key={option.value}
+                      onClick={() => handleSortChange(option.value)}
+                    >
+                      {option.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </form>
           
           {/* Active filters */}
@@ -375,19 +394,20 @@ export default function DiscoverProblems() {
               {selectedCategories.map((category) => (
                 <div 
                   key={category} 
-                  className="inline-flex items-center px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-sm"
+                  className="inline-flex items-center px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-xs"
                 >
                   {category}
                   <button style={{ cursor: 'pointer' }}
-                    className="ml-2 text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100"
+                    className="ml-1 text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100"
                     onClick={() => handleCategoryToggle(category)}
+                    aria-label={`Remove ${category} filter`}
                   >
                     &times;
                   </button>
                 </div>
               ))}
               <button style={{ cursor: 'pointer' }}
-                className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                className="text-xs sm:text-sm text-blue-600 dark:text-blue-400 hover:underline"
                 onClick={() => setSelectedCategories([])}
               >
                 Clear all
@@ -397,26 +417,40 @@ export default function DiscoverProblems() {
         </div>
         
         {/* View options: List or Grid */}
-        <div className="flex justify-between items-center mb-6">
-          <div className="text-sm text-slate-600 dark:text-slate-300">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-2 sm:gap-0">
+          <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-300">
             Showing {filteredProblems.length} problems
           </div>
           
-          <Tabs defaultValue="grid" className="w-auto">
-            <TabsList>
-              <TabsTrigger value="grid">Grid View</TabsTrigger>
-              <TabsTrigger value="list">List View</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <div className="flex items-center">
+            <Button 
+              variant={viewMode === 'grid' ? "default" : "outline"} 
+              size="sm"
+              onClick={() => setViewMode('grid')}
+              className="rounded-r-none"
+            >
+              <LayoutGrid className="h-4 w-4" />
+              <span className="ml-1 hidden sm:inline">Grid</span>
+            </Button>
+            <Button 
+              variant={viewMode === 'list' ? "default" : "outline"} 
+              size="sm"
+              onClick={() => setViewMode('list')}
+              className="rounded-l-none"
+            >
+              <List className="h-4 w-4" />
+              <span className="ml-1 hidden sm:inline">List</span>
+            </Button>
+          </div>
         </div>
         
         {/* Loading state */}
         {loading ? (
-          <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <div className="flex justify-center items-center py-8 sm:py-12">
+            <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-blue-600"></div>
           </div>
         ) : error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-8 sm:py-12">
             <p className="text-red-500 dark:text-red-400">{error}</p>
             <Button style={{ cursor: 'pointer' }}
               variant="outline" 
@@ -428,10 +462,10 @@ export default function DiscoverProblems() {
           </div>
         ) : (
           /* Problem Grid/List */
-          <Tabs defaultValue="grid" className="mb-8">
-            <TabsContent value="grid">
-              {currentProblems.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="mb-6 sm:mb-8">
+            {viewMode === 'grid' ? (
+              currentProblems.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                   {currentProblems.map((problem) => (
                     <Link 
                       href={`/problems/${problem.id}`} 
@@ -445,44 +479,44 @@ export default function DiscoverProblems() {
                         role="button"
                         aria-label={`View details for ${problem.title}`}
                       >
-                        <CardHeader className="pb-2">
+                        <CardHeader className="pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
                           <div className="flex justify-between items-start">
                             <div className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 rounded text-xs">
                               {problem.category}
                             </div>
-                            <div className="flex items-center text-sm text-slate-500">
-                              <TrendingUp className="h-4 w-4 mr-1" /> {problem.votes}
+                            <div className="flex items-center text-xs sm:text-sm text-slate-500">
+                              <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 mr-1" /> {problem.votes}
                             </div>
                           </div>
-                          <CardTitle className="mt-3 line-clamp-1">{problem.title}</CardTitle>
-                          <CardDescription className="mt-2 line-clamp-2">
+                          <CardTitle className="mt-2 sm:mt-3 text-base sm:text-lg line-clamp-1">{problem.title}</CardTitle>
+                          <CardDescription className="mt-1 sm:mt-2 text-xs sm:text-sm line-clamp-2">
                             {problem.description}
                           </CardDescription>
                         </CardHeader>
-                        <CardContent className="pb-2 flex-grow">
-                          <div className="flex flex-wrap gap-2">
+                        <CardContent className="pb-2 px-3 sm:px-6 flex-grow">
+                          <div className="flex flex-wrap gap-1 sm:gap-2">
                             {problem.tags && problem.tags.slice(0, 3).map((tag, index) => (
-                              <span key={index} className="inline-block px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full text-xs">
+                              <span key={index} className="inline-block px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full text-xs">
                                 {tag}
                               </span>
                             ))}
                             {problem.tags && problem.tags.length > 3 && (
-                              <span className="inline-block px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full text-xs">
+                              <span className="inline-block px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full text-xs">
                                 +{problem.tags.length - 3} more
                               </span>
                             )}
                           </div>
                         </CardContent>
-                        <CardFooter className="flex justify-between border-t border-slate-200 dark:border-slate-700 pt-4 mt-auto">
-                          <div className="flex items-center text-sm text-slate-500">
-                            <div className="flex items-center mr-4">
-                              <MessageSquare className="h-4 w-4 mr-1" /> {problem.discussions || 0}
+                        <CardFooter className="flex justify-between border-t border-slate-200 dark:border-slate-700 pt-3 px-3 sm:px-6 mt-auto text-xs sm:text-sm">
+                          <div className="flex items-center text-slate-500">
+                            <div className="flex items-center mr-3 sm:mr-4">
+                              <MessageSquare className="h-3 w-3 sm:h-4 sm:w-4 mr-1" /> {problem.discussions || 0}
                             </div>
                             <div className="flex items-center">
-                              <Clock className="h-4 w-4 mr-1" /> {problem.createdAt}
+                              <Clock className="h-3 w-3 sm:h-4 sm:w-4 mr-1" /> {problem.createdAt}
                             </div>
                           </div>
-                          <Button style={{ cursor: 'pointer' }} variant="ghost" size="sm" className="text-blue-600">
+                          <Button style={{ cursor: 'pointer' }} variant="ghost" size="sm" className="text-blue-600 text-xs">
                             View
                           </Button>
                         </CardFooter>
@@ -491,7 +525,7 @@ export default function DiscoverProblems() {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-12">
+                <div className="text-center py-8 sm:py-12">
                   <p className="text-slate-600 dark:text-slate-300">No problems match your current filters.</p>
                   <Button style={{ cursor: 'pointer' }}
                     variant="outline" 
@@ -506,12 +540,10 @@ export default function DiscoverProblems() {
                     Reset Filters
                   </Button>
                 </div>
-              )}
-            </TabsContent>
-            
-            <TabsContent value="list">
-              {currentProblems.length > 0 ? (
-                <div className="flex flex-col gap-4">
+              )
+            ) : (
+              currentProblems.length > 0 ? (
+                <div className="flex flex-col gap-3 sm:gap-4">
                   {currentProblems.map((problem) => (
                     <Link 
                       href={`/problems/${problem.id}`}
@@ -525,56 +557,48 @@ export default function DiscoverProblems() {
                         role="button"
                         aria-label={`View details for ${problem.title}`}
                       >
-                        <div className="flex flex-col md:flex-row p-4">
-                          <div className="flex-grow">
-                            <div className="flex items-center gap-3 mb-2">
-                              <div className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 rounded text-xs">
-                                {problem.category}
-                              </div>
-                              <div className="flex items-center text-sm text-slate-500">
-                                <Calendar className="h-4 w-4 mr-1" /> {problem.createdAt}
-                              </div>
-                              <div className="flex items-center text-sm text-slate-500">
-                                <Users className="h-4 w-4 mr-1" /> {problem.submittedBy}
-                              </div>
+                        <div className="flex flex-col p-3 sm:p-4">
+                          <div className="flex flex-row items-start justify-between mb-2">
+                            <div className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 rounded text-xs">
+                              {problem.category}
                             </div>
-                            
-                            <h3 className="text-xl font-semibold mb-2 text-slate-900 dark:text-slate-50 line-clamp-1">
-                              {problem.title}
-                            </h3>
-                            
-                            <p className="text-slate-600 dark:text-slate-300 mb-3 line-clamp-2">
-                              {problem.description}
-                            </p>
-                            
-                            <div className="flex flex-wrap gap-2 mb-3">
-                              {problem.tags && problem.tags.slice(0, 4).map((tag, index) => (
-                                <span key={index} className="inline-block px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full text-xs">
-                                  {tag}
-                                </span>
-                              ))}
-                              {problem.tags && problem.tags.length > 4 && (
-                                <span className="inline-block px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full text-xs">
-                                  +{problem.tags.length - 4} more
-                                </span>
-                              )}
+                            <div className="flex items-center text-xs sm:text-sm text-slate-500">
+                              <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-1" /> {problem.createdAt}
                             </div>
                           </div>
                           
-                          <div className="flex flex-row md:flex-col gap-4 justify-between mt-4 md:mt-0 md:ml-6 md:min-w-24">
-                            <div className="flex flex-col items-center">
-                              <ThumbsUp className="h-5 w-5 text-blue-500" />
-                              <span className="text-sm font-medium">{problem.votes}</span>
-                              <span className="text-xs text-slate-500">Votes</span>
+                          <h3 className="text-lg font-semibold mb-1 sm:mb-2 text-slate-900 dark:text-slate-50 line-clamp-1">
+                            {problem.title}
+                          </h3>
+                          
+                          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mb-2 sm:mb-3 line-clamp-2">
+                            {problem.description}
+                          </p>
+                          
+                          <div className="flex flex-wrap gap-1 sm:gap-2 mb-2 sm:mb-3">
+                            {problem.tags && problem.tags.slice(0, 3).map((tag, index) => (
+                              <span key={index} className="inline-block px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full text-xs">
+                                {tag}
+                              </span>
+                            ))}
+                            {problem.tags && problem.tags.length > 3 && (
+                              <span className="inline-block px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full text-xs">
+                                +{problem.tags.length - 3} more
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                            <div className="flex gap-3 sm:gap-4 items-center text-xs sm:text-sm">
+                              <div className="flex items-center text-slate-500">
+                                <ThumbsUp className="h-3 w-3 sm:h-4 sm:w-4 mr-1" /> {problem.votes}
+                              </div>
+                              <div className="flex items-center text-slate-500">
+                                <MessageSquare className="h-3 w-3 sm:h-4 sm:w-4 mr-1" /> {problem.discussions || 0}
+                              </div>
                             </div>
                             
-                            <div className="flex flex-col items-center">
-                              <MessageSquare className="h-5 w-5 text-blue-500" />
-                              <span className="text-sm font-medium">{problem.discussions || 0}</span>
-                              <span className="text-xs text-slate-500">Replies</span>
-                            </div>
-                            
-                            <Button style={{ cursor: 'pointer' }} className="bg-blue-600 hover:bg-blue-700 w-full">
+                            <Button style={{ cursor: 'pointer' }} className="bg-blue-600 hover:bg-blue-700 text-xs sm:text-sm py-1 px-2 sm:py-2 sm:px-3 h-auto">
                               View
                             </Button>
                           </div>
@@ -584,7 +608,7 @@ export default function DiscoverProblems() {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-12">
+                <div className="text-center py-8 sm:py-12">
                   <p className="text-slate-600 dark:text-slate-300">No problems match your current filters.</p>
                   <Button style={{ cursor: 'pointer' }}
                     variant="outline" 
@@ -599,15 +623,15 @@ export default function DiscoverProblems() {
                     Reset Filters
                   </Button>
                 </div>
-              )}
-            </TabsContent>
-          </Tabs>
+              )
+            )}
+          </div>
         )}
         
         {/* Pagination */}
         {!loading && totalPages > 1 && (
-          <Pagination>
-            <PaginationContent>
+          <Pagination className="mt-4 sm:mt-6">
+            <PaginationContent className="flex-wrap">
               <PaginationItem>
                 <PaginationPrevious 
                   href="#"
@@ -619,24 +643,33 @@ export default function DiscoverProblems() {
                 />
               </PaginationItem>
               
-              {getPageNumbers().map((number, index) => (
-                <PaginationItem key={index}>
-                  {number === '...' ? (
-                    <span className="px-4 py-2">...</span>
-                  ) : (
-                    <PaginationLink 
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setCurrentPage(number);
-                      }}
-                      isActive={currentPage === number}
-                    >
-                      {number}
-                    </PaginationLink>
-                  )}
+              {/* On mobile, show minimal pagination */}
+              {typeof window !== 'undefined' && window.innerWidth < 480 ? (
+                <PaginationItem>
+                  <span className="flex items-center justify-center h-10 w-10 text-sm">
+                    {currentPage} / {totalPages}
+                  </span>
                 </PaginationItem>
-              ))}
+              ) : (
+                getPageNumbers().map((number, index) => (
+                  <PaginationItem key={index} className="hidden sm:block">
+                    {number === '...' ? (
+                      <span className="px-4 py-2">...</span>
+                    ) : (
+                      <PaginationLink 
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setCurrentPage(number);
+                        }}
+                        isActive={currentPage === number}
+                      >
+                        {number}
+                      </PaginationLink>
+                    )}
+                  </PaginationItem>
+                ))
+              )}
               
               <PaginationItem>
                 <PaginationNext 
