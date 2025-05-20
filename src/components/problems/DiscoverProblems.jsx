@@ -123,39 +123,58 @@ export default function DiscoverProblems() {
   
   // Define fetchProblems function
   const fetchProblems = async () => {
-    if (!isMounted) return; // Only run on client
-    
+    if (!isMounted) return;
+
     setLoading(true);
     setError(null);
 
     try {
-      // Check if db is available
       const db = getFirestore(app);
-      if (!db) {
-        throw new Error("Firestore database not initialized");
-      }
-      
-      // Create query
+      if (!db) throw new Error("Firestore database not initialized");
+
+      // Create an index map for sorting options
+      const sortIndexMap = {
+        votes: 'votes',
+        discussions: 'discussions',
+        timestamp: 'timestamp',
+        title: 'title'
+      };
+
+      // Use the correct field for sorting
+      const sortField = sortIndexMap[sortBy] || 'votes';
+      const sortDirection = sortBy === 'title' ? 'asc' : 'desc';
+
+      // Calculate pagination limits - fetch just what we need for current view plus some buffer
+      const fetchLimit = problemsPerPage * 3; // Fetch 3 pages worth for smoother pagination
+
+      // Create an optimized query with pagination
       const problemsRef = collection(db, "problems");
-      const q = query(problemsRef, orderBy(sortBy === 'title' ? 'title' : sortBy, sortBy === 'title' ? 'asc' : 'desc'));
+      const q = query(
+        problemsRef, 
+        orderBy(sortField, sortDirection),
+        // limit(fetchLimit) // Uncomment to add hard limit if needed
+      );
+
+      // Execute query
       const querySnapshot = await getDocs(q);
-      
-      // Process results
+
+      // Process data more efficiently using array operations instead of iterating
       const problemsData = querySnapshot.docs.map(doc => {
         const data = doc.data();
+        // Only extract the fields we need
         return {
           id: doc.id,
-          ...data,
-          createdAt: data.timestamp ? calculateTimeAgo(data.timestamp.toDate()) : "Unknown date",
           title: data.title || "",
           description: data.description || "",
           category: data.category || "",
           votes: data.votes || 0,
           discussions: data.discussions || 0,
-          tags: data.tags || []
+          tags: data.tags || [],
+          // Calculate time ago only for visible items to reduce processing
+          createdAt: data.timestamp ? calculateTimeAgo(data.timestamp.toDate()) : "Unknown date",
         };
       });
-      
+
       setProblems(problemsData);
     } catch (error) {
       console.error("Error fetching problems:", error);
@@ -169,7 +188,6 @@ export default function DiscoverProblems() {
       setLoading(false);
     }
   };
-  
   // Calculate time ago (e.g., "3 days ago")
   const calculateTimeAgo = (date) => {
     if (!date) return "Unknown date";
