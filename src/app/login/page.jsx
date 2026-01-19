@@ -1,38 +1,38 @@
 'use client'
 
-import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth'
-import { auth } from '@/lib/firebase'
+import { signInWithGoogle } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
-import { onAuthStateChanged } from 'firebase/auth'
+import { supabase } from '@/lib/supabase'
 
 export default function LoginPage() {
   const router = useRouter()
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      if (currentUser) {
-        router.push('/dashboard') // ✅ Redirect if already logged in
+    // Check if user is already logged in
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        router.push('/') // Redirect if already logged in
       }
-    })
-    return () => unsubscribe()
+    }
+    checkUser()
   }, [router])
 
   const handleLogin = async () => {
-    const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider)
-      router.push('/home')
+      await signInWithGoogle()
+      // Redirect happens automatically via callback
     } catch (error) {
-      console.error("Authentication failed:", error);
+      console.error("Authentication failed:", error)
     }
   }
 
   return (
     <div className="relative flex flex-col items-center justify-center h-screen overflow-hidden">
       {/* Globe Background - Implement your globe here if needed */}
-      
+
       {/* Login Overlay */}
       <div className="absolute z-50 flex flex-col items-center justify-center bg-white/80 dark:bg-black/70 backdrop-blur-md p-6 rounded-xl shadow-xl">
         <h1 className="text-3xl font-bold mb-4 text-black dark:text-white">Welcome to SolvingHub</h1>

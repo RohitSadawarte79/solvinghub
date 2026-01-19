@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { auth, db } from '@/lib/firebase';
-import { collection, query, where, getDocs, deleteDoc, doc, orderBy } from 'firebase/firestore';
+import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/api';
 import {
   Card,
   CardContent,
@@ -16,11 +16,11 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsContent, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  ChevronLeft, 
-  Edit, 
-  Trash2, 
-  MessageSquare, 
+import {
+  ChevronLeft,
+  Edit,
+  Trash2,
+  MessageSquare,
   ThumbsUp,
   Menu,
   X
@@ -54,63 +54,102 @@ export default function MyProblems() {
 
   // Set up auth state listener
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const currentUser = session?.user ?? null;
       setUser(currentUser);
       if (currentUser) {
         fetchUserProblems(currentUser);
       } else {
-        // If not logged in, redirect to login
         router.push('/login?redirect=/my-problems');
       }
     });
 
-    return () => unsubscribe();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      if (currentUser) {
+        fetchUserProblems(currentUser);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, [router]);
 
   const fetchUserProblems = async (currentUser) => {
     if (!currentUser) return;
-    
+
     try {
       setLoading(true);
-      const q = query(
-        collection(db, "problems"),
-        where("submittedBy", "==", currentUser.displayName || "Anonymous"),
-        orderBy("timestamp", "desc")
-      );
-      
-      const querySnapshot = await getDocs(q);
-      const problemsData = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
+
+      // Fetch problems where user_id matches
+      const { data, error } = await supabase
+        .from('problems')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const problemsData = data.map(problem => ({
+        id: problem.id,
+        title: problem.title,
+        description: problem.description,
+        category: problem.category,
+        tags: problem.tags || [],
+        votes: problem.votes || 0,
+        discussions: problem.discussions || 0,
+        createdAt: calculateTimeAgo(new Date(problem.created_at))
       }));
-      
+
       setProblems(problemsData);
     } catch (error) {
       console.error("Error fetching problems:", error);
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: "Failed to fetch your problems. Please try again.",
-        variant: "destructive"
       });
     } finally {
       setLoading(false);
     }
   };
 
+  const calculateTimeAgo = (date) => {
+    if (!date) return "Unknown date";
+    const seconds = Math.floor((new Date() - date) / 1000);
+
+    let interval = seconds / 31536000;
+    if (interval > 1) return Math.floor(interval) + " years ago";
+
+    interval = seconds / 2592000;
+    if (interval > 1) return Math.floor(interval) + " months ago";
+
+    interval = seconds / 86400;
+    if (interval > 1) return Math.floor(interval) + " days ago";
+
+    interval = seconds / 3600;
+    if (interval > 1) return Math.floor(interval) + " hours ago";
+
+    interval = seconds / 60;
+    if (interval > 1) return Math.floor(interval) + " minutes ago";
+
+    return Math.floor(seconds) + " seconds ago";
+  };
+
   const handleDelete = async (id) => {
     try {
-      await deleteDoc(doc(db, "problems", id));
+      const response = await api.delete(`/api/problems/${id}`);
+
+      if (!response.ok) {
+        throw new Error('Failed to delete');
+      }
+
       setProblems(problems.filter(problem => problem.id !== id));
-      toast({
-        title: "Problem Deleted",
+      toast.success("Problem Deleted", {
         description: "Your problem has been successfully deleted.",
       });
     } catch (error) {
       console.error("Error deleting problem:", error);
-      toast({
-        title: "Delete Failed",
+      toast.error("Delete Failed", {
         description: "An error occurred while deleting the problem.",
-        variant: "destructive"
       });
     }
   };
@@ -149,7 +188,7 @@ export default function MyProblems() {
       </SheetTrigger>
       <SheetContent side="bottom" className="max-h-72">
         <div className="flex flex-col gap-2 py-4">
-          <Button 
+          <Button
             variant={activeTab === 'all' ? "default" : "ghost"}
             className="justify-start"
             onClick={() => {
@@ -160,8 +199,8 @@ export default function MyProblems() {
             All Problems
           </Button>
           {categories.map(category => (
-            <Button 
-              key={category} 
+            <Button
+              key={category}
               variant={activeTab === category ? "default" : "ghost"}
               className="justify-start"
               onClick={() => {
@@ -186,7 +225,7 @@ export default function MyProblems() {
             <span className="sm:inline">Back to Problems</span>
           </Button>
         </Link>
-        
+
         <div className='mt-3'>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-slate-50 mb-2">My Problems</h1>
           <p className="text-sm md:text-base text-slate-600 dark:text-slate-300">
@@ -194,7 +233,7 @@ export default function MyProblems() {
           </p>
         </div>
       </div>
-      
+
       {problems.length === 0 ? (
         <Card className="text-center py-8 md:py-16">
           <CardContent>
@@ -213,7 +252,7 @@ export default function MyProblems() {
         <>
           {/* Mobile category selector */}
           <MobileCategorySelector />
-          
+
           {/* Desktop tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6 hidden md:block">
             <TabsList className="mb-4 flex flex-wrap">
@@ -225,7 +264,7 @@ export default function MyProblems() {
               ))}
             </TabsList>
           </Tabs>
-            
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {filteredProblems().map((problem) => (
               <Card key={problem.id} className="flex flex-col h-full hover:shadow-md transition-shadow">
@@ -250,7 +289,7 @@ export default function MyProblems() {
                     {problem.description}
                   </CardDescription>
                 </CardHeader>
-                
+
                 <CardContent className="pb-2 md:pb-3 flex-grow">
                   <div className="flex flex-wrap gap-1 mb-2">
                     {problem.tags.slice(0, 3).map((tag, index) => (
@@ -268,17 +307,17 @@ export default function MyProblems() {
                     Posted: {problem.createdAt}
                   </div>
                 </CardContent>
-                
+
                 <CardFooter className="pt-2 border-t border-slate-100 dark:border-slate-800">
                   <div className="flex justify-between w-full">
                     <Button style={{ cursor: 'pointer' }} variant="ghost" size="sm" className="text-xs md:text-sm" onClick={() => handleEdit(problem.id)}>
                       <Edit className="h-3 w-3 md:h-4 md:w-4 mr-1" /> Edit
                     </Button>
-                    
+
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button style={{ cursor: 'pointer' }}
-                          variant="ghost" 
+                          variant="ghost"
                           size="sm"
                           className="text-xs md:text-sm text-red-500 hover:text-red-700 hover:bg-red-50"
                           onClick={() => setDeleteId(problem.id)}
@@ -309,7 +348,7 @@ export default function MyProblems() {
               </Card>
             ))}
           </div>
-          
+
           <div className="mt-6 md:mt-8 flex justify-center">
             <Link href="/post">
               <Button style={{ cursor: 'pointer' }}>Post New Problem</Button>

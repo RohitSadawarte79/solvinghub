@@ -3,13 +3,13 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 
 import { useState, useEffect } from 'react';
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle
 } from '@/components/ui/card';
 import {
   Tabs,
@@ -17,7 +17,7 @@ import {
   TabsList,
   TabsTrigger
 } from '@/components/ui/tabs';
-import { 
+import {
   Search,
   Users,
   MessageSquare,
@@ -28,8 +28,7 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { toast } from "sonner";
-import { db } from '@/lib/firebase';
-import { collection, getDocs, query, orderBy, limit, where } from 'firebase/firestore';
+import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
 export default function WelcomePage() {
@@ -40,101 +39,143 @@ export default function WelcomePage() {
   const [problems, setProblems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('trending');
-  
+  const [mounted, setMounted] = useState(false);
+
   const categories = [
-    "Education", "Technology", "Health", "Environment", 
+    "Education", "Technology", "Health", "Environment",
     "Food & Agriculture", "Transportation", "Finance", "Social"
   ];
-  
-  // Fetch problems from Firebase based on tab selection
+
+  // Fetch problems from Supabase based on tab selection
   useEffect(() => {
     const fetchProblems = async () => {
       setLoading(true);
       try {
-        let problemsQuery;
-        
+        console.log('Fetching problems...');
+        console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+        console.log('Has Anon Key:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+
+        let query = supabase
+          .from('problems')
+          .select('*')
+          .limit(3);
+
+        // Apply sorting based on active tab
         switch (activeTab) {
           case 'trending':
-            problemsQuery = query(
-              collection(db, "problems"),
-              orderBy("votes", "desc"),
-              limit(3)
-            );
+            query = query.order('votes', { ascending: false });
             break;
           case 'recent':
-            problemsQuery = query(
-              collection(db, "problems"),
-              orderBy("timestamp", "desc"),
-              limit(3)
-            );
+            query = query.order('created_at', { ascending: false });
             break;
           case 'most-discussed':
-            problemsQuery = query(
-              collection(db, "problems"),
-              orderBy("discussions", "desc"),
-              limit(3)
-            );
+            query = query.order('discussions', { ascending: false });
             break;
           default:
-            problemsQuery = query(
-              collection(db, "problems"),
-              orderBy("votes", "desc"),
-              limit(3)
-            );
+            query = query.order('votes', { ascending: false });
         }
-        
+
         // Apply category filter if selected
         if (selectedCategory) {
-          problemsQuery = query(
-            collection(db, "problems"),
-            where("category", "==", selectedCategory),
-            orderBy(activeTab === 'recent' ? "timestamp" : 
-                   activeTab === 'most-discussed' ? "discussions" : "votes", "desc"),
-            limit(3)
-          );
+          query = query.eq('category', selectedCategory);
         }
-        
-        const querySnapshot = await getDocs(problemsQuery);
-        const problemsList = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
+
+        console.log('Executing query...');
+        const { data, error } = await query;
+
+        console.log('Query result:', { data, error });
+        console.log('Has data:', !!data);
+        console.log('Has error:', !!error);
+        console.log('Data is:', data);
+        console.log('Error is:', error);
+
+        if (error) {
+          console.error('Supabase error:', error);
+          throw new Error(error.message || 'Query failed');
+        }
+
+        if (!data) {
+          console.warn('No data returned from query');
+          setProblems([]);
+          return;
+        }
+
+        // Transform data to match expected format
+        const problemsList = data.map(problem => ({
+          id: problem.id,
+          title: problem.title,
+          description: problem.description,
+          category: problem.category,
+          votes: problem.votes || 0,
+          discussions: problem.discussions || 0,
+          tags: problem.tags || [],
+          createdAt: calculateTimeAgo(new Date(problem.created_at))
         }));
-        
+
         setProblems(problemsList);
       } catch (error) {
         console.error("Error fetching problems:", error);
-        toast({
-          title: "Failed to load problems",
-          description: "There was an error loading problems. Please try again later.",
-          variant: "destructive"
+        console.error("Error details:", JSON.stringify(error, null, 2));
+        console.error("Error message:", error?.message);
+        console.error("Error code:", error?.code);
+        toast.error("Failed to load problems", {
+          description: error?.message || "There was an error loading problems. Please try again later.",
         });
       } finally {
         setLoading(false);
       }
     };
-    
+
     fetchProblems();
   }, [activeTab, selectedCategory]);
-  
+
+  // Set mounted after first render to prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Helper function to calculate time ago
+  const calculateTimeAgo = (date) => {
+    if (!date) return "Unknown date";
+    const seconds = Math.floor((new Date() - date) / 1000);
+
+    let interval = seconds / 31536000;
+    if (interval > 1) return Math.floor(interval) + " years ago";
+
+    interval = seconds / 2592000;
+    if (interval > 1) return Math.floor(interval) + " months ago";
+
+    interval = seconds / 86400;
+    if (interval > 1) return Math.floor(interval) + " days ago";
+
+    interval = seconds / 3600;
+    if (interval > 1) return Math.floor(interval) + " hours ago";
+
+    interval = seconds / 60;
+    if (interval > 1) return Math.floor(interval) + " minutes ago";
+
+    return Math.floor(seconds) + " seconds ago";
+  };
+
   // Handle search functionality - redirect to discover page with search term
   const handleSearch = (e) => {
     e.preventDefault();
-    
+
     if (!searchTerm.trim()) return;
-    
+
     // Redirect to the discover problems page with the search term
     router.push(`/discover?search=${encodeURIComponent(searchTerm)}`);
   };
-  
+
   // Handle filter by category
   const handleCategoryFilter = (category) => {
     setSelectedCategory(category === selectedCategory ? '' : category);
   };
-  
+
   // Handle email subscription
   const handleSubscribe = (e) => {
     e.preventDefault();
-    
+
     if (!email.trim() || !email.includes('@')) {
       toast({
         title: "Invalid Email",
@@ -143,14 +184,14 @@ export default function WelcomePage() {
       });
       return;
     }
-    
+
     // Here you would typically send this to your backend/Firebase
     // For now, we'll just show a success message
     toast({
       title: "Subscription Successful",
       description: "Thank you for subscribing to our newsletter!"
     });
-    
+
     setEmail('');
   };
 
@@ -222,6 +263,17 @@ export default function WelcomePage() {
     );
   };
 
+  // Prevent hydration mismatch from browser extensions
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+        <div className="container mx-auto px-4 py-8 flex justify-center items-center min-h-screen">
+          <div className="animate-pulse">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
       <div className="container mx-auto px-4 py-8">
@@ -232,16 +284,16 @@ export default function WelcomePage() {
               Problem-First, Not Solution-First
             </div>
           </div>
-          
+
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-slate-900 dark:text-slate-50 mb-6">
             Welcome to <span className="text-blue-600 dark:text-blue-400">SolvingHub</span>
           </h1>
-          
+
           <p className="text-lg text-slate-600 dark:text-slate-300 max-w-2xl mb-8">
             The community-driven platform where real-world problems meet innovative solutions.
             Discover, discuss, and collaborate on problems that matter.
           </p>
-          
+
           <div className="flex flex-col sm:flex-row gap-4">
             <Link href="/discover">
               <Button style={{ cursor: 'pointer' }} size="lg" className="bg-blue-600 hover:bg-blue-700">
@@ -255,15 +307,15 @@ export default function WelcomePage() {
             </Link>
           </div>
         </div>
-        
+
         {/* Search and Filter */}
         <div>
           <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4 mb-6 p-4">
             <div className="relative flex-grow">
               <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-              <input 
-                type="text" 
-                placeholder="Search for problems..." 
+              <input
+                type="text"
+                placeholder="Search for problems..."
                 className="pl-10 flex h-12 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -273,16 +325,15 @@ export default function WelcomePage() {
               <Search className="mr-2 h-4 w-4" /> Search
             </Button>
           </form>
-          
+
           <div className="flex flex-wrap gap-2 p-4">
             {categories.map((category) => (
-              <div 
-                key={category} 
-                className={`inline-block px-3 py-1 rounded-full text-sm cursor-pointer transition-colors ${
-                  selectedCategory === category 
-                    ? 'bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-300' 
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
-                }`}
+              <div
+                key={category}
+                className={`inline-block px-3 py-1 rounded-full text-sm cursor-pointer transition-colors ${selectedCategory === category
+                  ? 'bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-300'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                  }`}
                 onClick={() => handleCategoryFilter(category)}
               >
                 {category}
@@ -290,7 +341,7 @@ export default function WelcomePage() {
             ))}
           </div>
         </div>
-        
+
         {/* Features Section */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
           <Card className="border border-slate-200 dark:border-slate-700">
@@ -306,7 +357,7 @@ export default function WelcomePage() {
               </p>
             </CardContent>
           </Card>
-          
+
           <Card className="border border-slate-200 dark:border-slate-700">
             <CardHeader>
               <div className="mb-2">
@@ -320,7 +371,7 @@ export default function WelcomePage() {
               </p>
             </CardContent>
           </Card>
-          
+
           <Card className="border border-slate-200 dark:border-slate-700">
             <CardHeader>
               <div className="mb-2">
@@ -335,20 +386,20 @@ export default function WelcomePage() {
             </CardContent>
           </Card>
         </div>
-        
+
         {/* Featured Problems */}
         <div className="mb-16">
           <h2 className="text-2xl font-bold mb-6 text-slate-900 dark:text-slate-50">
             Featured Problems
           </h2>
-          
+
           <Tabs defaultValue="trending" value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-6">
               <TabsTrigger value="trending">Trending</TabsTrigger>
               <TabsTrigger value="recent">Recent</TabsTrigger>
               <TabsTrigger value="most-discussed">Most Discussed</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="trending">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {loading ? (
@@ -370,7 +421,7 @@ export default function WelcomePage() {
                   </div>
                 )}
               </div>
-              
+
               {problems.length > 0 && (
                 <div className="flex justify-center mt-8">
                   <Link href="/discover">
@@ -381,7 +432,7 @@ export default function WelcomePage() {
                 </div>
               )}
             </TabsContent>
-            
+
             <TabsContent value="recent">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {loading ? (
@@ -403,7 +454,7 @@ export default function WelcomePage() {
                   </div>
                 )}
               </div>
-              
+
               {problems.length > 0 && (
                 <div className="flex justify-center mt-8">
                   <Link href="/discover?sort=recent">
@@ -414,7 +465,7 @@ export default function WelcomePage() {
                 </div>
               )}
             </TabsContent>
-            
+
             <TabsContent value="most-discussed">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {loading ? (
@@ -436,7 +487,7 @@ export default function WelcomePage() {
                   </div>
                 )}
               </div>
-              
+
               {problems.length > 0 && (
                 <div className="flex justify-center mt-8">
                   <Link href="/discover?sort=most-discussed">
@@ -449,13 +500,13 @@ export default function WelcomePage() {
             </TabsContent>
           </Tabs>
         </div>
-        
+
         {/* How It Works */}
         <div className="mb-16">
           <h2 className="text-2xl font-bold mb-8 text-center text-slate-900 dark:text-slate-50">
             How SolvingHub Works
           </h2>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div className="flex flex-col items-center text-center">
               <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mb-4">
@@ -466,7 +517,7 @@ export default function WelcomePage() {
                 Browse real-world problems across various categories and domains
               </p>
             </div>
-            
+
             <div className="flex flex-col items-center text-center">
               <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mb-4">
                 <MessageSquare className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -476,7 +527,7 @@ export default function WelcomePage() {
                 Participate in discussions and brainstorm potential solutions
               </p>
             </div>
-            
+
             <div className="flex flex-col items-center text-center">
               <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mb-4">
                 <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -486,7 +537,7 @@ export default function WelcomePage() {
                 Form teams and work together on tackling challenging problems
               </p>
             </div>
-            
+
             <div className="flex flex-col items-center text-center">
               <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mb-4">
                 <CheckCircle className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -498,7 +549,7 @@ export default function WelcomePage() {
             </div>
           </div>
         </div>
-        
+
         {/* Join Community */}
         <Card className="border border-slate-200 dark:border-slate-700 mb-16">
           <CardHeader>
@@ -521,7 +572,7 @@ export default function WelcomePage() {
             </form>
           </CardContent>
         </Card>
-        
+
         {/* Footer */}
         <footer className="border-t border-slate-200 dark:border-slate-700 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center">

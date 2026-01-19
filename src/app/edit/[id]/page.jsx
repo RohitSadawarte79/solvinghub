@@ -1,7 +1,7 @@
 "use client"; // For Next.js client components
 import React from 'react';
-import { auth } from '@/lib/firebase';
-import { db } from '@/lib/firebase';
+import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/api';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -33,12 +33,12 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsContent, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  X, 
-  Plus, 
-  PlusCircle, 
-  MinusCircle, 
-  ChevronLeft, 
+import {
+  X,
+  Plus,
+  PlusCircle,
+  MinusCircle,
+  ChevronLeft,
   AlertCircle,
   LoaderCircle
 } from 'lucide-react';
@@ -54,15 +54,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-// Firebase imports
-import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 
 export default function EditProblem({ params }) {
   const unwrappedParams = React.use(params);
   const { id: problemId } = unwrappedParams;
   const router = useRouter();
   const methods = useForm();
-  
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
@@ -70,7 +68,7 @@ export default function EditProblem({ params }) {
   const [tags, setTags] = useState([]);
   const [impacts, setImpacts] = useState(['']);
   const [challenges, setChallenges] = useState(['']);
-  
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -82,7 +80,7 @@ export default function EditProblem({ params }) {
 
   // Categories list - matches the categories in DiscoverProblems
   const categories = [
-    "Education", "Technology", "Health", "Environment", 
+    "Education", "Technology", "Health", "Environment",
     "Food & Agriculture", "Transportation", "Finance", "Social"
   ];
 
@@ -91,12 +89,12 @@ export default function EditProblem({ params }) {
     setNotFound(true);
     setIsLoading(false);
   };
-  
+
   const handleNotAuthorized = () => {
     setNotAuthorized(true);
     setIsLoading(false);
   };
-  
+
   const populateFormData = (problemData) => {
     setTitle(problemData.title || '');
     setDescription(problemData.description || '');
@@ -104,12 +102,12 @@ export default function EditProblem({ params }) {
     setTags(problemData.tags || []);
     setImpacts(problemData.impacts?.length ? problemData.impacts : ['']);
     setChallenges(problemData.challenges?.length ? problemData.challenges : ['']);
-    
+
     // Store original data for comparison
     setOriginalData(problemData);
     setIsLoading(false);
   };
-  
+
   const handleFetchError = (error) => {
     console.error("Error fetching problem:", error);
     toast({
@@ -119,7 +117,7 @@ export default function EditProblem({ params }) {
     });
     setIsLoading(false);
   };
-  
+
   // Fetch problem data
   useEffect(() => {
     const fetchProblem = async () => {
@@ -129,27 +127,35 @@ export default function EditProblem({ params }) {
       }
 
       try {
-        const problemRef = doc(db, "problems", problemId);
-        const problemSnap = await getDoc(problemRef);
-        
-        if (!problemSnap.exists()) {
-          handleNotFound();
+        // Get current user from Supabase
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) {
+          handleNotAuthorized();
           return;
         }
-        
-        const problemData = problemSnap.data();
-        
+
+        // Fetch problem using API
+        const response = await api.get(`/api/problems/${problemId}`);
+        const result = await response.json();
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            handleNotFound();
+          } else {
+            handleFetchError(new Error(result.error));
+          }
+          return;
+        }
+
+        const problemData = result.problem;
+
         // Check if current user is the author of the problem
-        if (!auth.currentUser) {
+        if (problemData.user_id !== user.id) {
           handleNotAuthorized();
           return;
         }
-        
-        if (problemData.submittedBy !== auth.currentUser.displayName) {
-          handleNotAuthorized();
-          return;
-        }
-        
+
         populateFormData(problemData);
       } catch (error) {
         handleFetchError(error);
@@ -162,8 +168,8 @@ export default function EditProblem({ params }) {
   // Track if user has made changes to form
   useEffect(() => {
     if (!originalData) return;
-    
-    const hasDataChanged = 
+
+    const hasDataChanged =
       title !== originalData.title ||
       description !== originalData.description ||
       category !== originalData.category ||
@@ -172,7 +178,7 @@ export default function EditProblem({ params }) {
       challenges.length !== originalData.challenges.length ||
       impacts.some((impact, i) => originalData.impacts[i] !== impact) ||
       challenges.some((challenge, i) => originalData.challenges[i] !== challenge);
-    
+
     setHasChanges(hasDataChanged);
   }, [title, description, category, tags, impacts, challenges, originalData]);
 
@@ -180,7 +186,7 @@ export default function EditProblem({ params }) {
     e.preventDefault();
     const trimmedInput = tagInput.trim();
     const isValid = trimmedInput !== '' && !tags.includes(trimmedInput) && tags.length < 5;
-    
+
     if (isValid) {
       setTags([...tags, trimmedInput]);
       setTagInput('');
@@ -229,69 +235,67 @@ export default function EditProblem({ params }) {
 
   const validateForm = () => {
     const newErrors = {};
-    
+
     if (!title.trim()) {
       newErrors.title = "Title is required";
     } else if (title.length < 10) {
       newErrors.title = "Title should be at least 10 characters";
     }
-    
+
     if (!description.trim()) {
       newErrors.description = "Description is required";
     } else if (description.length < 50) {
       newErrors.description = "Description should be at least 50 characters";
     }
-    
+
     if (!category) {
       newErrors.category = "Category is required";
     }
-    
+
     if (tags.length === 0) {
       newErrors.tags = "At least one tag is required";
     }
-    
+
     const emptyImpacts = impacts.findIndex(impact => !impact.trim());
     if (emptyImpacts !== -1) {
       newErrors.impacts = `Impact #${emptyImpacts + 1} cannot be empty`;
     }
-    
+
     const emptyChallenges = challenges.findIndex(challenge => !challenge.trim());
     if (emptyChallenges !== -1) {
       newErrors.challenges = `Challenge #${emptyChallenges + 1} cannot be empty`;
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
-      toast({
-        title: "Validation Error",
+      toast.error("Validation Error", {
         description: "Please fix the errors in the form.",
-        variant: "destructive"
       });
       setActiveView('edit'); // Switch back to edit mode to fix errors
       return;
     }
-    
+
     // Clear any previous validation errors
     setErrors({});
-    
-    if (!auth.currentUser) {
-      toast({
-        title: "Authentication Required",
+
+    // Check authentication
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast.error("Authentication Required", {
         description: "Please log in to update a problem.",
-        variant: "destructive"
       });
-      router.push(`/login?redirect=/problems/edit/${problemId}`);
+      router.push(`/login?redirect=/edit/${problemId}`);
       return;
     }
 
     setIsSubmitting(true);
-    
+
     try {
       // Prepare problem data for update
       const problemData = {
@@ -301,27 +305,26 @@ export default function EditProblem({ params }) {
         tags,
         impacts: impacts.filter(impact => impact.trim() !== ''),
         challenges: challenges.filter(challenge => challenge.trim() !== ''),
-        lastUpdated: serverTimestamp(),
-        updatedBy: auth.currentUser.displayName || "Anonymous"
       };
-      
-      // Update document in Firestore
-      const problemRef = doc(db, "problems", problemId);
-      await updateDoc(problemRef, problemData);
-      
-      toast({
-        title: "Problem Updated",
+
+      // Update via API
+      const response = await api.patch(`/api/problems/${problemId}`, problemData);
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update problem');
+      }
+
+      toast.success("Problem Updated", {
         description: "Your problem has been successfully updated!"
       });
-      
-      // Navigate back to problem detail or my problems
+
+      // Navigate back to problem detail
       router.push(`/problems/${problemId}`);
     } catch (error) {
       console.error("Error updating problem:", error);
-      toast({
-        title: "Update Failed",
-        description: "An error occurred while updating your problem. Please try again.",
-        variant: "destructive"
+      toast.error("Update Failed", {
+        description: error.message || "An error occurred while updating your problem. Please try again.",
       });
     } finally {
       setIsSubmitting(false);
@@ -343,7 +346,7 @@ export default function EditProblem({ params }) {
       </p>
     ) : null;
   };
-  
+
   // Loading state
   if (isLoading) {
     return (
@@ -353,7 +356,7 @@ export default function EditProblem({ params }) {
       </div>
     );
   }
-  
+
   // Not found state
   if (notFound) {
     return (
@@ -367,7 +370,7 @@ export default function EditProblem({ params }) {
       </div>
     );
   }
-  
+
   // Not authorized state
   if (notAuthorized) {
     return (
@@ -381,14 +384,14 @@ export default function EditProblem({ params }) {
       </div>
     );
   }
-  
+
   return (
     <FormProvider {...methods}>
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center mb-8">
           <Link href={`/problems/${problemId}`}>
             <Button
-              style={{ cursor: 'pointer' }} 
+              style={{ cursor: 'pointer' }}
               variant="ghost"
               className="mr-4"
               onClick={(e) => {
@@ -402,7 +405,7 @@ export default function EditProblem({ params }) {
               Back to Problem
             </Button>
           </Link>
-          
+
           <div>
             <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-50 mb-2">Edit Problem</h1>
             <p className="text-slate-600 dark:text-slate-300">
@@ -410,7 +413,7 @@ export default function EditProblem({ params }) {
             </p>
           </div>
         </div>
-        
+
         {/* Confirm navigation dialog */}
         <AlertDialog>
           <AlertDialogTrigger id="confirm-navigation-dialog" className="hidden">Open</AlertDialogTrigger>
@@ -429,7 +432,7 @@ export default function EditProblem({ params }) {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-        
+
         <Tabs value={activeView} onValueChange={toggleView} className="w-full mb-6">
           <div className="flex justify-end">
             <TabsList>
@@ -437,7 +440,7 @@ export default function EditProblem({ params }) {
               <TabsTrigger value="preview">Preview</TabsTrigger>
             </TabsList>
           </div>
-          
+
           <TabsContent value="preview" className="mt-0">
             <Card className="border-2 border-blue-200 dark:border-blue-800">
               <CardHeader>
@@ -466,7 +469,7 @@ export default function EditProblem({ params }) {
                     )}
                   </div>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                   <Card>
                     <CardHeader>
@@ -486,7 +489,7 @@ export default function EditProblem({ params }) {
                       </ul>
                     </CardContent>
                   </Card>
-                  
+
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-sm font-medium">Challenges</CardTitle>
@@ -507,17 +510,17 @@ export default function EditProblem({ params }) {
                   </Card>
                 </div>
               </CardContent>
-              
+
               <CardFooter className="border-t border-slate-200 dark:border-slate-700 pt-4 flex justify-between">
-                <Button style={{ cursor: 'pointer' }} 
+                <Button style={{ cursor: 'pointer' }}
                   variant="outline"
                   type="button"
                   onClick={() => toggleView('edit')}
                 >
                   Return to Edit
                 </Button>
-                
-                <Button style={{ cursor: 'pointer' }} 
+
+                <Button style={{ cursor: 'pointer' }}
                   type="button"
                   onClick={handleSubmit}
                   disabled={isSubmitting || !hasChanges}
@@ -534,7 +537,7 @@ export default function EditProblem({ params }) {
               </CardFooter>
             </Card>
           </TabsContent>
-      
+
           <TabsContent value="edit" className="mt-0">
             <Card>
               <form onSubmit={handleSubmit}>
@@ -562,7 +565,7 @@ export default function EditProblem({ params }) {
                       </FormControl>
                       {renderErrorMessage('title')}
                     </FormItem>
-                    
+
                     <FormItem>
                       <FormLabel htmlFor="description" className="text-base font-medium">Description</FormLabel>
                       <FormDescription>
@@ -579,7 +582,7 @@ export default function EditProblem({ params }) {
                       </FormControl>
                       {renderErrorMessage('description')}
                     </FormItem>
-                    
+
                     <FormItem>
                       <FormLabel htmlFor="category" className="text-base font-medium">Category</FormLabel>
                       <FormDescription>
@@ -599,7 +602,7 @@ export default function EditProblem({ params }) {
                       </FormControl>
                       {renderErrorMessage('category')}
                     </FormItem>
-                    
+
                     <FormItem>
                       <FormLabel htmlFor="tags" className="text-base font-medium">Tags</FormLabel>
                       <FormDescription>
@@ -609,7 +612,7 @@ export default function EditProblem({ params }) {
                         {tags.map((tag, index) => (
                           <Badge key={index} variant="secondary" className="flex items-center">
                             {tag}
-                            <button style={{ cursor: 'pointer' }} 
+                            <button style={{ cursor: 'pointer' }}
                               type="button"
                               onClick={() => handleRemoveTag(tag)}
                               className="ml-1 hover:text-red-500"
@@ -636,7 +639,7 @@ export default function EditProblem({ params }) {
                             }}
                           />
                         </FormControl>
-                        <Button style={{ cursor: 'pointer' }} 
+                        <Button style={{ cursor: 'pointer' }}
                           type="button"
                           onClick={handleAddTag}
                           className="rounded-l-none"
@@ -650,7 +653,7 @@ export default function EditProblem({ params }) {
                         <p className="text-sm text-amber-500 mt-1">Maximum number of tags reached (5)</p>
                       )}
                     </FormItem>
-                    
+
                     <FormItem>
                       <FormLabel className="text-base font-medium">Key Impacts</FormLabel>
                       <FormDescription>
@@ -667,7 +670,7 @@ export default function EditProblem({ params }) {
                                 className={errors.impacts && !impact.trim() ? 'border-red-500' : ''}
                               />
                             </FormControl>
-                            <Button style={{ cursor: 'pointer' }} 
+                            <Button style={{ cursor: 'pointer' }}
                               type="button"
                               variant="ghost"
                               size="icon"
@@ -679,7 +682,7 @@ export default function EditProblem({ params }) {
                             </Button>
                           </div>
                         ))}
-                        <Button style={{ cursor: 'pointer' }} 
+                        <Button style={{ cursor: 'pointer' }}
                           type="button"
                           variant="ghost"
                           className="flex items-center mt-2"
@@ -692,7 +695,7 @@ export default function EditProblem({ params }) {
                       </div>
                       {renderErrorMessage('impacts')}
                     </FormItem>
-                    
+
                     <FormItem>
                       <FormLabel className="text-base font-medium">Challenges</FormLabel>
                       <FormDescription>
@@ -709,7 +712,7 @@ export default function EditProblem({ params }) {
                                 className={errors.challenges && !challenge.trim() ? 'border-red-500' : ''}
                               />
                             </FormControl>
-                            <Button style={{ cursor: 'pointer' }} 
+                            <Button style={{ cursor: 'pointer' }}
                               type="button"
                               variant="ghost"
                               size="icon"
@@ -721,7 +724,7 @@ export default function EditProblem({ params }) {
                             </Button>
                           </div>
                         ))}
-                        <Button style={{ cursor: 'pointer' }} 
+                        <Button style={{ cursor: 'pointer' }}
                           type="button"
                           variant="ghost"
                           className="flex items-center mt-2"
@@ -736,11 +739,11 @@ export default function EditProblem({ params }) {
                     </FormItem>
                   </div>
                 </CardContent>
-                
+
                 <CardFooter className="border-t border-slate-200 dark:border-slate-700 pt-4 flex justify-between">
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button style={{ cursor: 'pointer' }}  variant="outline" type="button">
+                      <Button style={{ cursor: 'pointer' }} variant="outline" type="button">
                         Cancel
                       </Button>
                     </AlertDialogTrigger>
@@ -759,17 +762,17 @@ export default function EditProblem({ params }) {
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
-                  
+
                   <div className="flex gap-2">
-                    <Button style={{ cursor: 'pointer' }} 
+                    <Button style={{ cursor: 'pointer' }}
                       variant="outline"
                       type="button"
                       onClick={() => toggleView('preview')}
                     >
                       Preview
                     </Button>
-                    
-                    <Button style={{ cursor: 'pointer' }} 
+
+                    <Button style={{ cursor: 'pointer' }}
                       type="submit"
                       disabled={isSubmitting || !hasChanges}
                     >

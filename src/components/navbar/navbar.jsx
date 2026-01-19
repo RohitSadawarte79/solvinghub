@@ -2,8 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { auth } from '@/lib/firebase'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { supabase, signOut } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Menu, X } from 'lucide-react'
@@ -11,16 +10,28 @@ import { Menu, X } from 'lucide-react'
 export default function Navbar() {
   const [user, setUser] = useState(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser)
+    setMounted(true)
+
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null)
     })
-    return () => unsubscribe()
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+
+    return () => subscription.unsubscribe()
   }, [])
 
+  if (!mounted) return null
+
   const handleLogout = async () => {
-    await signOut(auth)
+    await signOut()
     setMobileMenuOpen(false)
   }
 
@@ -53,8 +64,8 @@ export default function Navbar() {
         {user ? (
           <div className="flex items-center gap-4">
             <Avatar>
-              <AvatarImage src={user?.photoURL || ''} />
-              <AvatarFallback>{user?.displayName?.[0] || 'U'}</AvatarFallback>
+              <AvatarImage src={user?.user_metadata?.avatar_url || ''} />
+              <AvatarFallback>{user?.user_metadata?.full_name?.[0] || user?.email?.[0] || 'U'}</AvatarFallback>
             </Avatar>
             <Button style={{ cursor: 'pointer' }} variant="outline" onClick={handleLogout}>
               Logout
@@ -71,12 +82,12 @@ export default function Navbar() {
       <div className="md:hidden flex items-center">
         {user && (
           <Avatar className="mr-4">
-            <AvatarImage src={user?.photoURL || ''} />
-            <AvatarFallback>{user?.displayName?.[0] || 'U'}</AvatarFallback>
+            <AvatarImage src={user?.user_metadata?.avatar_url || ''} />
+            <AvatarFallback>{user?.user_metadata?.full_name?.[0] || user?.email?.[0] || 'U'}</AvatarFallback>
           </Avatar>
         )}
-        <button 
-          onClick={toggleMobileMenu} 
+        <button
+          onClick={toggleMobileMenu}
           className="text-slate-700 focus:outline-none"
           aria-label="Toggle menu"
         >
@@ -92,22 +103,22 @@ export default function Navbar() {
       {mobileMenuOpen && (
         <div className="absolute top-full left-0 w-full bg-white shadow-md py-4 px-6 z-50 md:hidden border-b border-slate-200">
           <div className="flex flex-col gap-4">
-            <Link 
-              href="/discover" 
+            <Link
+              href="/discover"
               className="text-sm text-muted-foreground hover:text-black py-2"
               onClick={() => setMobileMenuOpen(false)}
             >
               Explore
             </Link>
-            <Link 
-              href="/post" 
+            <Link
+              href="/post"
               className="text-sm text-muted-foreground hover:text-black py-2"
               onClick={() => setMobileMenuOpen(false)}
             >
               Post
             </Link>
-            <Link 
-              href="/my-problems" 
+            <Link
+              href="/my-problems"
               className="text-sm text-muted-foreground hover:text-black py-2"
               onClick={() => setMobileMenuOpen(false)}
             >
@@ -115,9 +126,9 @@ export default function Navbar() {
             </Link>
             <div className="pt-2 border-t border-slate-200">
               {user ? (
-                <Button 
-                  style={{ cursor: 'pointer' }} 
-                  variant="outline" 
+                <Button
+                  style={{ cursor: 'pointer' }}
+                  variant="outline"
                   onClick={handleLogout}
                   className="w-full"
                 >
