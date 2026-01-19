@@ -1,21 +1,29 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Create a single supabase client for interacting with your database
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+// Lazy-initialized supabase client
+let supabaseInstance = null
 
-// Create client only if env vars are available (handles build-time static generation)
-const createSupabaseClient = () => {
-    if (!supabaseUrl || !supabaseAnonKey) {
-        // During build time, env vars may not be available
-        // Return a mock client that throws helpful errors at runtime
-        if (typeof window === 'undefined') {
-            console.warn('Supabase env vars not available during build - this is expected for static generation')
-        }
-        return null
+// Get or create supabase client (lazy initialization for build compatibility)
+const getSupabaseClient = () => {
+    if (supabaseInstance) {
+        return supabaseInstance
     }
 
-    return createClient(supabaseUrl, supabaseAnonKey, {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+        // During build time or if env vars missing
+        if (typeof window === 'undefined') {
+            // Server-side during build - don't throw, just warn
+            console.warn('Supabase env vars not available - client will be created at runtime')
+            return null
+        }
+        // Client-side without env vars - this is a real error
+        throw new Error('Missing Supabase environment variables. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.')
+    }
+
+    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
         auth: {
             persistSession: true,
             autoRefreshToken: true,
@@ -27,30 +35,41 @@ const createSupabaseClient = () => {
             },
         },
     })
+
+    return supabaseInstance
 }
 
-export const supabase = createSupabaseClient()
-
-// Helper to ensure supabase client is available
-const ensureClient = () => {
-    if (!supabase) {
-        throw new Error('Supabase client not initialized. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables.')
+// Export a proxy that lazy-initializes the client
+export const supabase = new Proxy({}, {
+    get(target, prop) {
+        const client = getSupabaseClient()
+        if (!client) {
+            // Return a mock for build-time that won't crash
+            if (prop === 'auth') {
+                return {
+                    getUser: async () => ({ data: { user: null }, error: null }),
+                    getSession: async () => ({ data: { session: null }, error: null }),
+                    signInWithOAuth: async () => ({ data: null, error: new Error('Client not initialized') }),
+                    signOut: async () => ({ error: null }),
+                    onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => { } } } }),
+                }
+            }
+            return () => Promise.resolve({ data: null, error: new Error('Client not initialized') })
+        }
+        return client[prop]
     }
-    return supabase
-}
+})
 
 // Helper function to get current user
 export const getCurrentUser = async () => {
-    const client = ensureClient()
-    const { data: { user }, error } = await client.auth.getUser()
+    const { data: { user }, error } = await supabase.auth.getUser()
     if (error) throw error
     return user
 }
 
 // Helper function to sign in with Google
 export const signInWithGoogle = async () => {
-    const client = ensureClient()
-    const { data, error } = await client.auth.signInWithOAuth({
+    const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
             redirectTo: `${window.location.origin}/auth/callback`,
@@ -62,15 +81,12 @@ export const signInWithGoogle = async () => {
 
 // Helper function to sign out
 export const signOut = async () => {
-    const client = ensureClient()
-    const { error } = await client.auth.signOut()
+    const { error } = await supabase.auth.signOut()
     if (error) throw error
 }
 
 // Helper to check if user is authenticated
 export const isAuthenticated = async () => {
-    const client = ensureClient()
-    const { data: { session } } = await client.auth.getSession()
+    const { data: { session } } = await supabase.auth.getSession()
     return !!session
 }
-
