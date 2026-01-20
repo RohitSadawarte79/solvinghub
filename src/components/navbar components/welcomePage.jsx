@@ -51,10 +51,6 @@ export default function WelcomePage() {
     const fetchProblems = async () => {
       setLoading(true);
       try {
-        console.log('Fetching problems...');
-        console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
-        console.log('Has Anon Key:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-
         let query = supabase
           .from('problems')
           .select('*')
@@ -80,14 +76,7 @@ export default function WelcomePage() {
           query = query.eq('category', selectedCategory);
         }
 
-        console.log('Executing query...');
         const { data, error } = await query;
-
-        console.log('Query result:', { data, error });
-        console.log('Has data:', !!data);
-        console.log('Has error:', !!error);
-        console.log('Data is:', data);
-        console.log('Error is:', error);
 
         if (error) {
           console.error('Supabase error:', error);
