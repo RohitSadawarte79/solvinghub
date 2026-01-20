@@ -1,21 +1,13 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 
-// Server-side Supabase client for API routes and Server Components
 export async function createClient() {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-    if (!supabaseUrl || !supabaseAnonKey) {
-        console.error('Missing Supabase environment variables on server')
-        throw new Error('Server configuration error: Missing Supabase environment variables')
-    }
-
     const cookieStore = await cookies()
 
     return createServerClient(
-        supabaseUrl,
-        supabaseAnonKey,
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
         {
             cookies: {
                 getAll() {
@@ -37,8 +29,29 @@ export async function createClient() {
     )
 }
 
-// Admin client with service role key (for cron jobs, server actions)
-export function createAdminClient() {
+// Alternative: Simple read-only client for API routes
+export async function createClientForApiRoute() {
+    const cookieStore = await cookies()
+
+    return createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        {
+            cookies: {
+                getAll() {
+                    return cookieStore.getAll()
+                },
+                setAll() {
+                    // Do nothing - API routes are read-only for cookies
+                },
+            },
+        }
+    )
+}
+
+// Admin client for server-side operations that need to bypass RLS
+// USE WITH CAUTION - Only for trusted server-side operations
+export async function createAdminClient() {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
@@ -47,7 +60,7 @@ export function createAdminClient() {
         throw new Error('Server configuration error: Missing Supabase admin credentials')
     }
 
-    return createServerClient(
+    return createSupabaseClient(
         supabaseUrl,
         serviceRoleKey,
         {

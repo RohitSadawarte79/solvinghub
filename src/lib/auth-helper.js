@@ -1,82 +1,75 @@
-import { createServerClient } from '@supabase/ssr'
-import { createClient } from '@supabase/supabase-js'
-import { cookies } from 'next/headers'
+import { createClient } from '@/lib/supabase-server'
 
 /**
  * Extract and validate the user from the Authorization header
- * Returns an admin client (service role) for database operations after validation
- * This is secure because we validate the token first before using elevated privileges
+ * Returns the authenticated Supabase client with user context
  * 
  * @param {Request} request - The incoming request
  * @returns {Promise<{user: User|null, error: string|null, supabase: SupabaseClient}>}
  */
 export async function getAuthenticatedUser(request) {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    try {
+        // Create server client (this respects RLS and user context)
+        const supabase = await createClient()
 
-    if (!supabaseUrl || !supabaseAnonKey) {
-        console.error('Missing Supabase environment variables in auth-helper')
-        return { user: null, error: 'Server configuration error', supabase: null }
-    }
+        // Extract Authorization header if provided
+        const authHeader = request.headers.get('Authorization')
+        const token = authHeader?.replace('Bearer ', '')
 
-    const cookieStore = await cookies()
+        if (token) {
+            // Validate the token with Supabase
+            const { data: { user }, error } = await supabase.auth.getUser(token)
 
-    // Create client for token validation
-    const authClient = createServerClient(
-        supabaseUrl,
-        supabaseAnonKey,
-        {
-            cookies: {
-                getAll() {
-                    return cookieStore.getAll()
-                },
-                setAll(cookiesToSet) {
-                    try {
-                        cookiesToSet.forEach(({ name, value, options }) =>
-                            cookieStore.set(name, value, options)
-                        )
-                    } catch {
-                        // Ignore cookie setting errors in read-only contexts
-                    }
-                },
-            },
+            if (error || !user) {
+                return { 
+                    user: null, 
+                    error: error?.message || 'Invalid token', 
+                    supabase 
+                }
+            }
+
+            return { user, error: null, supabase }
         }
-    )
 
-    // Extract Authorization header
-    const authHeader = request.headers.get('Authorization')
-    const token = authHeader?.replace('Bearer ', '')
+        // No token provided - try to get user from session cookies
+        const { data: { user }, error } = await supabase.auth.getUser()
 
-    if (!token) {
-        return { user: null, error: 'No token provided', supabase: authClient }
-    }
-
-    // Validate the token with Supabase
-    const { data: { user }, error } = await authClient.auth.getUser(token)
-
-    if (error || !user) {
-        return { user: null, error: error?.message || 'Invalid token', supabase: authClient }
-    }
-
-    // Check for service role key (required for admin operations)
-    if (!serviceRoleKey) {
-        console.error('Missing SUPABASE_SERVICE_ROLE_KEY environment variable')
-        return { user: null, error: 'Server configuration error', supabase: authClient }
-    }
-
-    // Token is valid - create admin client for database operations (bypasses RLS)
-    // This is secure because we've already verified the user's identity above
-    const adminClient = createClient(
-        supabaseUrl,
-        serviceRoleKey,
-        {
-            auth: {
-                autoRefreshToken: false,
-                persistSession: false,
-            },
+        if (error || !user) {
+            return { 
+                user: null, 
+                error: error?.message || 'No user session', 
+                supabase 
+            }
         }
-    )
 
-    return { user, error: null, supabase: adminClient }
+        return { user, error: null, supabase }
+    } catch (error) {
+        console.error('Error in getAuthenticatedUser:', error)
+        
+        // Return a basic supabase client even on error
+        const supabase = await createClient()
+        return { 
+            user: null, 
+            error: error.message, 
+            supabase 
+        }
+    }
+}
+
+/**
+ * Get current user without requiring authentication
+ * Useful for optional authentication scenarios
+ * 
+ * @returns {Promise<{user: User|null, supabase: SupabaseClient}>}
+ */
+export async function getCurrentUser() {
+    try {
+        const supabase = await createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        return { user, supabase }
+    } catch (error) {
+        console.error('Error getting current user:', error)
+        const supabase = await createClient()
+        return { user: null, supabase }
+    }
 }

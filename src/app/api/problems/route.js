@@ -21,6 +21,8 @@ export async function GET(request) {
         const offset = Math.max(parseInt(searchParams.get('offset') || '0', 10), 0)
         const sortBy = searchParams.get('sort_by') || 'created_at'
         const category = searchParams.get('category')
+        
+        console.log('Query params:', { limit, offset, sortBy, category })
 
         // Build query
         let query = supabase
@@ -52,7 +54,9 @@ export async function GET(request) {
         // Apply pagination
         query = query.range(offset, offset + limit - 1)
 
+        console.log('Executing Supabase query...')
         const { data, error, count } = await query
+        console.log('Query executed. Has data:', !!data, 'Has error:', !!error, 'Count:', count)
 
         if (error) {
             console.error('Error fetching problems:', error)
