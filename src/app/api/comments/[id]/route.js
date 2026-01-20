@@ -60,7 +60,7 @@ export async function POST(request, { params }) {
         }
 
         // Sanitize text to prevent XSS attacks
-        const sanitizedText = sanitizeCommentText(text)
+        const sanitizedText = await sanitizeCommentText(text)
 
         // Insert reply
         const { data, error } = await supabase
