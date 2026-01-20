@@ -477,7 +477,12 @@ export default function DiscoverProblems() {
             <Button style={{ cursor: 'pointer' }}
               variant="outline"
               className="mt-4"
-              onClick={fetchProblems}
+              onClick={() => {
+                setError(null);
+                setLoading(true);
+                // Trigger refetch by updating a dependency
+                window.location.reload();
+              }}
             >
               Try Again
             </Button>
