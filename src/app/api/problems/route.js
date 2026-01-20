@@ -9,43 +9,37 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET(request) {
     try {
-        console.log('GET /api/problems - Handler entered')
-
         // Dynamic import to avoid import-time crashes on Vercel
-        const { createClient } = await import('@/lib/supabase-server')
-        const supabase = await createClient()
-
-        // Check auth status (optional - don't fail if not authenticated)
-        // This ensures the client has proper context but doesn't block public reads
+        let supabase
         try {
-            const { data: { user } } = await supabase.auth.getUser()
-            console.log('User auth status:', user ? `Authenticated: ${user.id}` : 'Anonymous')
-        } catch (authError) {
-            // Ignore auth errors - problems are publicly readable
-            console.log('Auth check failed (non-blocking):', authError.message)
+            const { createClient } = await import('@/lib/supabase-server')
+            supabase = await createClient()
+        } catch (clientError) {
+            console.error('Failed to create Supabase client:', clientError)
+            // Fallback: Create basic client directly
+            const { createClient: createBasicClient } = await import('@supabase/supabase-js')
+            supabase = createBasicClient(
+                process.env.NEXT_PUBLIC_SUPABASE_URL,
+                process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+            )
         }
 
-        // Parse query parameters
-        const { searchParams } = new URL(request.url)
-        const limit = Math.min(parseInt(searchParams.get('limit') || '10', 10), 100)
-        const offset = Math.max(parseInt(searchParams.get('offset') || '0', 10), 0)
-        const sortBy = searchParams.get('sort_by') || 'created_at'
-        const category = searchParams.get('category')
-        
-        console.log('Query params:', { limit, offset, sortBy, category })
+        // Parse query parameters safely
+        let limit = 10, offset = 0, sortBy = 'created_at', category = null
+        try {
+            const { searchParams } = new URL(request.url)
+            limit = Math.min(parseInt(searchParams.get('limit') || '10', 10), 100)
+            offset = Math.max(parseInt(searchParams.get('offset') || '0', 10), 0)
+            sortBy = searchParams.get('sort_by') || 'created_at'
+            category = searchParams.get('category')
+        } catch (parseError) {
+            console.error('Error parsing query params:', parseError)
+        }
 
-        // Build query
+        // Build query - simplified for reliability
         let query = supabase
             .from('problems')
-            .select(`
-                *,
-                users:user_id (
-                    id,
-                    display_name,
-                    photo_url,
-                    reputation
-                )
-            `, { count: 'exact' })
+            .select('*', { count: 'exact' })
 
         // Apply category filter if provided
         if (category && category !== 'all') {
@@ -64,14 +58,12 @@ export async function GET(request) {
         // Apply pagination
         query = query.range(offset, offset + limit - 1)
 
-        console.log('Executing Supabase query...')
         const { data, error, count } = await query
-        console.log('Query executed. Has data:', !!data, 'Has error:', !!error, 'Count:', count)
 
         if (error) {
-            console.error('Error fetching problems:', error)
+            console.error('Supabase query error:', error)
             return NextResponse.json(
-                { error: 'Failed to fetch problems', details: error.message },
+                { error: 'Failed to fetch problems', details: error.message || 'Query failed' },
                 { status: 500 }
             )
         }
@@ -87,15 +79,11 @@ export async function GET(request) {
             }
         })
     } catch (error) {
-        console.error('Unexpected error in GET /api/problems:', error)
-        console.error('Error name:', error?.name)
-        console.error('Error message:', error?.message)
-        console.error('Error stack:', error?.stack)
+        console.error('API route error:', error)
         return NextResponse.json(
             { 
                 error: 'Internal server error', 
-                details: error?.message || 'Unknown error',
-                type: error?.name || 'Error'
+                details: String(error?.message || error || 'Unknown error')
             },
             { status: 500 }
         )
