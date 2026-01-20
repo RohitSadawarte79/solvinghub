@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 
-// Force Node.js runtime for compatibility
 export const runtime = 'nodejs'
 
 // UUID v4 regex pattern
@@ -12,7 +11,7 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-
  */
 export async function GET(request, { params }) {
     try {
-        const { id } = await params
+        const { id } = params  // NOT async
 
         console.log('GET /api/problems/[id] called with id:', id)
 
@@ -89,7 +88,7 @@ export async function GET(request, { params }) {
  */
 export async function PATCH(request, { params }) {
     try {
-        const { id } = await params
+        const { id } = params  // NOT async
 
         console.log('PATCH /api/problems/[id] called with id:', id)
 
@@ -180,7 +179,7 @@ export async function PATCH(request, { params }) {
  */
 export async function DELETE(request, { params }) {
     try {
-        const { id } = await params
+        const { id } = params  // NOT async
 
         console.log('DELETE /api/problems/[id] called with id:', id)
 

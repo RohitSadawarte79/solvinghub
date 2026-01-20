@@ -26,7 +26,6 @@
     "@vercel/analytics": "^1.5.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "isomorphic-dompurify": "^2.35.0",
     "lucide-react": "^0.510.0",
     "next": "^16.1.3",
     "postcss": "^8.5.3",

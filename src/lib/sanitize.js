@@ -2,44 +2,23 @@
  * Input Sanitization Utility
  * 
  * Prevents XSS (Cross-Site Scripting) attacks by sanitizing user input
- * Uses DOMPurify for comprehensive HTML/JS sanitization
+ * 
+ * PRODUCTION-SAFE STRATEGY:
+ * - Store PLAINTEXT in database (no HTML)
+ * - Escape on frontend when rendering
+ * - No DOM libraries on server (Vercel-safe)
  * 
  * IMPORTANT: Always sanitize user input before:
  * - Storing in database
  * - Displaying in UI
- * - Using in API responses
  * 
- * NOTE: DOMPurify is LAZY-LOADED to prevent serverless cold-start crashes
- * All sanitization functions are async to support dynamic import
+ * ARCHITECTURE:
+ * - Server: Strip/escape everything → store plaintext
+ * - Frontend: Render with proper escaping or markdown library
  */
 
-// Lazy-loaded DOMPurify instance (prevents import-time crashes on Vercel)
-let _dompurify = null;
-let _dompurifyLoadFailed = false;
-
 /**
- * Lazily load and cache DOMPurify
- * Prevents import-time crashes in Vercel serverless environment
- * @returns {Promise<object|null>} DOMPurify instance or null if failed
- */
-async function getDOMPurify() {
-    if (_dompurify) return _dompurify;
-    if (_dompurifyLoadFailed) return null;
-
-    try {
-        const mod = await import('isomorphic-dompurify');
-        _dompurify = mod.default || mod;
-        console.log('DOMPurify loaded successfully');
-        return _dompurify;
-    } catch (e) {
-        console.error('DOMPurify failed to load:', e.message, e.stack);
-        _dompurifyLoadFailed = true;
-        return null;
-    }
-}
-
-/**
- * Escape HTML entities (fallback when DOMPurify unavailable)
+ * Escape HTML entities to prevent XSS
  * Use when you want to display user input AS-IS but safely
  * 
  * @param {string} text - Text to escape
@@ -64,69 +43,123 @@ export function escapeHTML(text) {
 }
 
 /**
- * Sanitize a single string to prevent XSS attacks
+ * Strip all HTML tags and return plaintext
+ * More aggressive than escapeHTML - removes tags entirely
  * 
- * @param {string} input - User input to sanitize
- * @param {object} options - DOMPurify configuration
- * @returns {Promise<string>} Sanitized string
+ * @param {string} text - Text to strip
+ * @returns {string} Plaintext with no HTML
  * 
  * @example
- * const userInput = "<script>alert('xss')</script>Hello"
- * const safe = await sanitizeInput(userInput)
- * // safe = "Hello"
+ * stripHTML("<p>Hello <script>alert(1)</script></p>")
+ * // "Hello alert(1)"
  */
-export async function sanitizeInput(input, options = {}) {
+export function stripHTML(text) {
+    if (typeof text !== 'string') return '';
+    
+    // Remove all HTML tags
+    return text
+        .replace(/<[^>]*>/g, '')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .trim();
+}
+
+/**
+ * Sanitize a single string input
+ * Strips all HTML tags and returns clean plaintext
+ * 
+ * @param {string} input - User input to sanitize
+ * @returns {string} Sanitized plaintext
+ * 
+ * @example
+ * sanitizeInput("<script>alert('xss')</script>Hello")
+ * // "alert('xss')Hello"
+ */
+export function sanitizeInput(input) {
     if (typeof input !== 'string') {
         console.warn('sanitizeInput: Expected string, got', typeof input);
         return '';
     }
 
-    try {
-        const DOMPurify = await getDOMPurify();
-        if (DOMPurify) {
-            // Default configuration: Strip all HTML tags
-            const config = {
-                ALLOWED_TAGS: [], // No HTML tags allowed by default
-                ALLOWED_ATTR: [], // No attributes allowed
-                KEEP_CONTENT: true, // Keep text content, remove tags
-                ...options
-            };
-            return DOMPurify.sanitize(input, config).trim();
-        }
-    } catch (e) {
-        console.error('sanitizeInput failed, using fallback:', e.message);
-    }
+    return stripHTML(input);
+}
 
-    // Fallback to simple HTML escaping
-    return escapeHTML(input).trim();
+/**
+ * Sanitize title text
+ * Removes HTML and limits length
+ * 
+ * @param {string} title - Title text
+ * @returns {string} Sanitized title
+ */
+export function sanitizeTitle(title) {
+    if (typeof title !== 'string') return '';
+    return stripHTML(title).trim();
+}
+
+/**
+ * Sanitize problem description
+ * Removes all HTML, stores as plaintext
+ * Frontend can render with markdown if needed
+ * 
+ * @param {string} description - Problem description
+ * @returns {string} Sanitized description
+ */
+export function sanitizeProblemDescription(description) {
+    if (typeof description !== 'string') return '';
+    return stripHTML(description).trim();
+}
+
+/**
+ * Sanitize comment/reply text
+ * Removes all HTML for safety
+ * 
+ * @param {string} text - Comment text
+ * @returns {string} Sanitized text
+ */
+export function sanitizeCommentText(text) {
+    if (typeof text !== 'string') return '';
+    return stripHTML(text).trim();
+}
+
+/**
+ * Sanitize an array of strings
+ * 
+ * @param {string[]} items - Array of strings to sanitize
+ * @returns {string[]} Array of sanitized strings
+ */
+export function sanitizeArray(items) {
+    if (!Array.isArray(items)) return [];
+    return items
+        .filter(item => typeof item === 'string')
+        .map(item => stripHTML(item).trim())
+        .filter(item => item.length > 0);
 }
 
 /**
  * Sanitize an object's string properties
- * Recursively processes nested objects and arrays
  * 
  * @param {object} obj - Object to sanitize
- * @param {object} options - DOMPurify configuration
- * @returns {Promise<object>} Sanitized object
+ * @returns {object} Sanitized object
  */
-export async function sanitizeObject(obj, options = {}) {
+export function sanitizeObject(obj) {
     if (obj === null || obj === undefined) {
         return obj;
     }
 
     // Handle arrays
     if (Array.isArray(obj)) {
-        const results = await Promise.all(
-            obj.map(async (item) => {
-                if (typeof item === 'string') {
-                    return sanitizeInput(item, options);
-                } else if (typeof item === 'object') {
-                    return sanitizeObject(item, options);
-                }
-                return item;
-            })
-        );
-        return results;
+        return obj.map((item) => {
+            if (typeof item === 'string') {
+                return sanitizeInput(item);
+            } else if (typeof item === 'object') {
+                return sanitizeObject(item);
+            }
+            return item;
+        });
     }
 
     // Handle objects
@@ -134,9 +167,9 @@ export async function sanitizeObject(obj, options = {}) {
         const sanitized = {};
         for (const [key, value] of Object.entries(obj)) {
             if (typeof value === 'string') {
-                sanitized[key] = await sanitizeInput(value, options);
+                sanitized[key] = sanitizeInput(value);
             } else if (typeof value === 'object') {
-                sanitized[key] = await sanitizeObject(value, options);
+                sanitized[key] = sanitizeObject(value);
             } else {
                 sanitized[key] = value;
             }
@@ -150,90 +183,20 @@ export async function sanitizeObject(obj, options = {}) {
 
 /**
  * Sanitize problem data before storing in database
- * Allows some safe formatting tags in description
+ * Strips all HTML - stores plaintext only
  * 
  * @param {object} problemData - Problem data from API
- * @returns {Promise<object>} Sanitized problem data
+ * @returns {object} Sanitized problem data
  */
-export async function sanitizeProblemData(problemData) {
-    // For description, allow safe formatting tags
-    const descriptionConfig = {
-        ALLOWED_TAGS: ['b', 'i', 'u', 'strong', 'em', 'p', 'br', 'ul', 'ol', 'li'],
-        ALLOWED_ATTR: []
+export function sanitizeProblemData(problemData) {
+    return {
+        ...problemData,
+        title: sanitizeTitle(problemData.title || ''),
+        description: sanitizeProblemDescription(problemData.description || ''),
+        tags: sanitizeArray(problemData.tags || []),
+        impacts: sanitizeArray(problemData.impacts || []),
+        challenges: sanitizeArray(problemData.challenges || []),
     };
-
-    try {
-        const DOMPurify = await getDOMPurify();
-
-        // Sanitize title (strip all HTML)
-        const title = await sanitizeInput(problemData.title);
-
-        // Sanitize description (allow formatting)
-        let description;
-        if (DOMPurify) {
-            description = DOMPurify.sanitize(problemData.description, descriptionConfig).trim();
-        } else {
-            description = escapeHTML(problemData.description).trim();
-        }
-
-        // Sanitize arrays
-        const tags = problemData.tags
-            ? await Promise.all(problemData.tags.map(tag => sanitizeInput(tag)))
-            : [];
-        const impacts = problemData.impacts
-            ? await Promise.all(problemData.impacts.map(impact => sanitizeInput(impact)))
-            : [];
-        const challenges = problemData.challenges
-            ? await Promise.all(problemData.challenges.map(challenge => sanitizeInput(challenge)))
-            : [];
-
-        return {
-            ...problemData,
-            title,
-            description,
-            tags,
-            impacts,
-            challenges,
-        };
-    } catch (e) {
-        console.error('sanitizeProblemData failed:', e.message);
-        // Return escaped fallback
-        return {
-            ...problemData,
-            title: escapeHTML(problemData.title),
-            description: escapeHTML(problemData.description),
-            tags: (problemData.tags || []).map(t => escapeHTML(t)),
-            impacts: (problemData.impacts || []).map(i => escapeHTML(i)),
-            challenges: (problemData.challenges || []).map(c => escapeHTML(c)),
-        };
-    }
-}
-
-/**
- * Sanitize comment/reply text
- * Allows basic formatting for better UX
- * 
- * @param {string} text - Comment text
- * @returns {Promise<string>} Sanitized text
- */
-export async function sanitizeCommentText(text) {
-    const config = {
-        ALLOWED_TAGS: ['b', 'i', 'u', 'strong', 'em', 'br', 'a'],
-        ALLOWED_ATTR: ['href'], // Allow links
-        ALLOWED_URI_REGEXP: /^https?:\/\// // Only allow http(s) links
-    };
-
-    try {
-        const DOMPurify = await getDOMPurify();
-        if (DOMPurify) {
-            return DOMPurify.sanitize(text, config).trim();
-        }
-    } catch (e) {
-        console.error('sanitizeCommentText failed, using fallback:', e.message);
-    }
-
-    // Fallback to simple escaping
-    return escapeHTML(text).trim();
 }
 
 /**

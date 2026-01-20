@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server'
-import { getAuthenticatedUser } from '@/lib/auth-helper'
+
+export const runtime = 'nodejs'
+
+// UUID v4 regex pattern
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 /**
  * POST /api/problems/[id]/vote
@@ -8,6 +12,20 @@ import { getAuthenticatedUser } from '@/lib/auth-helper'
 export async function POST(request, { params }) {
     try {
         const { id } = params
+
+        console.log('POST /api/problems/[id]/vote - Handler entered:', request.method, 'id:', id)
+
+        // Validate UUID format BEFORE any database operation
+        if (!id || typeof id !== 'string' || !UUID_REGEX.test(id)) {
+            console.log('Invalid problem id received:', id)
+            return NextResponse.json(
+                { error: 'Invalid problem id' },
+                { status: 400 }
+            )
+        }
+
+        // Dynamic import to avoid import-time crashes on Vercel
+        const { getAuthenticatedUser } = await import('@/lib/auth-helper')
 
         // Check authentication using token from Authorization header
         const { user, error: authError, supabase } = await getAuthenticatedUser(request)
@@ -82,7 +100,8 @@ export async function POST(request, { params }) {
             })
         }
     } catch (error) {
-        console.error('Unexpected error:', error)
+        console.error('Unexpected error in POST /api/problems/[id]/vote:', error)
+        console.error('Stack trace:', error.stack)
         return NextResponse.json(
             { error: 'Internal server error' },
             { status: 500 }
@@ -97,6 +116,20 @@ export async function POST(request, { params }) {
 export async function GET(request, { params }) {
     try {
         const { id } = params
+
+        console.log('GET /api/problems/[id]/vote - Handler entered:', request.method, 'id:', id)
+
+        // Validate UUID format BEFORE any database operation
+        if (!id || typeof id !== 'string' || !UUID_REGEX.test(id)) {
+            console.log('Invalid problem id received:', id)
+            return NextResponse.json(
+                { error: 'Invalid problem id' },
+                { status: 400 }
+            )
+        }
+
+        // Dynamic import to avoid import-time crashes on Vercel
+        const { getAuthenticatedUser } = await import('@/lib/auth-helper')
 
         // Check authentication using token from Authorization header
         const { user, supabase } = await getAuthenticatedUser(request)
@@ -114,7 +147,8 @@ export async function GET(request, { params }) {
 
         return NextResponse.json({ voted: !!data })
     } catch (error) {
-        console.error('Unexpected error:', error)
+        console.error('Unexpected error in GET /api/problems/[id]/vote:', error)
+        console.error('Stack trace:', error.stack)
         return NextResponse.json(
             { error: 'Internal server error' },
             { status: 500 }

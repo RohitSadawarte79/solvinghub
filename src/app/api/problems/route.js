@@ -1,121 +1,171 @@
 import { NextResponse } from 'next/server'
 
-// Force Node.js runtime for compatibility
 export const runtime = 'nodejs'
 
 /**
- * MINIMAL DEBUG HANDLER - Phase 1
- * GET /api/problems - List problems
- * 
- * Purpose: Isolate the exact failure point on Vercel serverless
+ * GET /api/problems
+ * List problems with pagination and sorting
  */
 export async function GET(request) {
-    const logs = []
-
     try {
-        // Step 1: Entry point
-        logs.push('[1] GET /api/problems - Handler entered')
+        console.log('GET /api/problems - Handler entered')
 
-        // Step 2: Check environment variables
-        const envCheck = {
-            NEXT_PUBLIC_SUPABASE_URL: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-            NEXT_PUBLIC_SUPABASE_ANON_KEY: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-        }
-        logs.push(`[2] Env vars check: ${JSON.stringify(envCheck)}`)
+        // Dynamic import to avoid import-time crashes on Vercel
+        const { createClient } = await import('@/lib/supabase-server')
+        const supabase = await createClient()
 
-        if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-            logs.push('[2.1] FAIL: Missing Supabase environment variables')
-            console.log('[DEBUG]', logs.join('\n'))
-            return NextResponse.json({
-                error: 'Missing Supabase environment variables',
-                debug: logs
-            }, { status: 500 })
-        }
+        // Parse query parameters
+        const { searchParams } = new URL(request.url)
+        const limit = parseInt(searchParams.get('limit') || '10', 10)
+        const offset = parseInt(searchParams.get('offset') || '0', 10)
+        const sortBy = searchParams.get('sort_by') || 'created_at'
+        const category = searchParams.get('category')
 
-        // Step 3: Dynamically import supabase-server
-        logs.push('[3] Attempting to dynamically import @/lib/supabase-server...')
-        console.log('[DEBUG] [3] Attempting to dynamically import @/lib/supabase-server...')
-
-        let createClient
-        try {
-            const supabaseModule = await import('@/lib/supabase-server')
-            createClient = supabaseModule.createClient
-            logs.push('[3.1] SUCCESS: supabase-server imported')
-            console.log('[DEBUG] [3.1] SUCCESS: supabase-server imported')
-        } catch (importError) {
-            logs.push(`[3.1] FAIL: supabase-server import error: ${importError.message}`)
-            logs.push(`[3.2] Stack: ${importError.stack}`)
-            console.error('[DEBUG] Import error:', importError)
-            return NextResponse.json({
-                error: 'Failed to import supabase-server',
-                message: importError.message,
-                debug: logs
-            }, { status: 500 })
-        }
-
-        // Step 4: Create Supabase client
-        logs.push('[4] Creating Supabase client...')
-        console.log('[DEBUG] [4] Creating Supabase client...')
-
-        let supabase
-        try {
-            supabase = await createClient()
-            logs.push('[4.1] SUCCESS: Supabase client created')
-            console.log('[DEBUG] [4.1] SUCCESS: Supabase client created')
-        } catch (clientError) {
-            logs.push(`[4.1] FAIL: Supabase client creation error: ${clientError.message}`)
-            logs.push(`[4.2] Stack: ${clientError.stack}`)
-            console.error('[DEBUG] Client creation error:', clientError)
-            return NextResponse.json({
-                error: 'Failed to create Supabase client',
-                message: clientError.message,
-                debug: logs
-            }, { status: 500 })
-        }
-
-        // Step 5: Query start
-        logs.push('[5] Starting Supabase query for problems...')
-        console.log('[DEBUG] [5] Starting Supabase query for problems...')
-
-        const { data, error } = await supabase
+        // Build query
+        let query = supabase
             .from('problems')
-            .select('id, title, created_at')
-            .order('created_at', { ascending: false })
-            .limit(5)
+            .select(`
+                *,
+                users:user_id (
+                    id,
+                    display_name,
+                    photo_url,
+                    reputation
+                )
+            `, { count: 'exact' })
 
-        // Step 6: Query end
-        logs.push(`[6] Query complete. Error: ${error ? error.message : 'none'}, Data count: ${data?.length ?? 0}`)
-        console.log('[DEBUG] [6] Query complete. Error:', error?.message ?? 'none', 'Data count:', data?.length ?? 0)
+        // Apply category filter if provided
+        if (category && category !== 'all') {
+            query = query.eq('category', category)
+        }
+
+        // Apply sorting
+        if (sortBy === 'votes') {
+            query = query.order('vote_count', { ascending: false })
+        } else if (sortBy === 'views') {
+            query = query.order('view_count', { ascending: false })
+        } else {
+            query = query.order('created_at', { ascending: false })
+        }
+
+        // Apply pagination
+        query = query.range(offset, offset + limit - 1)
+
+        const { data, error, count } = await query
 
         if (error) {
-            return NextResponse.json({
-                error: 'Supabase query failed',
-                message: error.message,
-                debug: logs
-            }, { status: 500 })
+            console.error('Error fetching problems:', error)
+            return NextResponse.json(
+                { error: 'Failed to fetch problems' },
+                { status: 500 }
+            )
         }
 
-        // Step 7: Return success
-        logs.push('[7] SUCCESS: Returning JSON response')
-        console.log('[DEBUG] [7] SUCCESS: Returning JSON response')
-        console.log('[DEBUG] Full logs:', logs.join(' | '))
-
         return NextResponse.json({
-            success: true,
-            problems: data,
-            debug: logs
+            problems: data || [],
+            total: count || 0,
+            limit,
+            offset
         })
-
     } catch (error) {
-        logs.push(`[FATAL] Unexpected error: ${error.message}`)
-        logs.push(`[FATAL] Stack: ${error.stack}`)
-        console.error('[DEBUG] [FATAL] Unexpected error:', error)
+        console.error('Unexpected error in GET /api/problems:', error)
+        console.error('Stack trace:', error.stack)
+        return NextResponse.json(
+            { error: 'Internal server error' },
+            { status: 500 }
+        )
+    }
+}
 
-        return NextResponse.json({
-            error: 'Internal server error',
-            message: error.message,
-            stack: error.stack,
-            debug: logs
-        }, { status: 500 })
+/**
+ * POST /api/problems
+ * Create a new problem
+ */
+export async function POST(request) {
+    try {
+        console.log('POST /api/problems - Handler entered')
+
+        // Dynamic imports to avoid import-time crashes on Vercel
+        const { getAuthenticatedUser } = await import('@/lib/auth-helper')
+        const { problemSchema } = await import('@/lib/validation')
+        const { sanitizeTitle, sanitizeProblemDescription } = await import('@/lib/sanitize')
+
+        // Check authentication
+        const { user, error: authError, supabase } = await getAuthenticatedUser(request)
+        if (authError || !user) {
+            return NextResponse.json(
+                { error: 'Unauthorized' },
+                { status: 401 }
+            )
+        }
+
+        const body = await request.json()
+
+        // Validate with Zod schema
+        let validatedData
+        try {
+            validatedData = problemSchema.parse(body)
+        } catch (error) {
+            return NextResponse.json(
+                {
+                    error: 'Validation failed',
+                    details: error.errors.map(e => ({
+                        field: e.path.join('.'),
+                        message: e.message
+                    }))
+                },
+                { status: 400 }
+            )
+        }
+
+        const { title, description, category, tags, impacts, challenges } = validatedData
+
+        // Sanitize inputs (now synchronous - no await needed)
+        const sanitizedTitle = sanitizeTitle(title)
+        const sanitizedDescription = sanitizeProblemDescription(description)
+
+        // Insert problem
+        const { data, error } = await supabase
+            .from('problems')
+            .insert({
+                title: sanitizedTitle,
+                description: sanitizedDescription,
+                category,
+                tags: tags || [],
+                impacts: impacts || [],
+                challenges: challenges || [],
+                user_id: user.id,
+                status: 'open',
+                vote_count: 0,
+                view_count: 0,
+                comment_count: 0
+            })
+            .select(`
+                *,
+                users:user_id (
+                    id,
+                    display_name,
+                    photo_url,
+                    reputation
+                )
+            `)
+            .single()
+
+        if (error) {
+            console.error('Error creating problem:', error)
+            return NextResponse.json(
+                { error: 'Failed to create problem' },
+                { status: 500 }
+            )
+        }
+
+        return NextResponse.json({ problem: data }, { status: 201 })
+    } catch (error) {
+        console.error('Unexpected error in POST /api/problems:', error)
+        console.error('Stack trace:', error.stack)
+        return NextResponse.json(
+            { error: 'Internal server error' },
+            { status: 500 }
+        )
     }
 }

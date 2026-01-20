@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase-server'
-import { getAuthenticatedUser } from '@/lib/auth-helper'
-import { commentSchema } from '@/lib/validation'
-import { sanitizeCommentText } from '@/lib/sanitize'
+
+export const runtime = 'nodejs'
+
+// UUID v4 regex pattern
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 /**
  * GET /api/problems/[id]/comments
@@ -10,8 +11,22 @@ import { sanitizeCommentText } from '@/lib/sanitize'
  */
 export async function GET(request, { params }) {
     try {
-        const supabase = await createClient()
         const { id } = params
+
+        console.log('GET /api/problems/[id]/comments - Handler entered:', request.method, 'id:', id)
+
+        // Validate UUID format BEFORE any database operation
+        if (!id || typeof id !== 'string' || !UUID_REGEX.test(id)) {
+            console.log('Invalid problem id received:', id)
+            return NextResponse.json(
+                { error: 'Invalid problem id' },
+                { status: 400 }
+            )
+        }
+
+        // Dynamic import to avoid import-time crashes on Vercel
+        const { createClient } = await import('@/lib/supabase-server')
+        const supabase = await createClient()
 
         // Fetch comments with user details and reply count
         const { data: comments, error } = await supabase
@@ -75,7 +90,8 @@ export async function GET(request, { params }) {
 
         return NextResponse.json({ comments })
     } catch (error) {
-        console.error('Unexpected error:', error)
+        console.error('Unexpected error in GET /api/problems/[id]/comments:', error)
+        console.error('Stack trace:', error.stack)
         return NextResponse.json(
             { error: 'Internal server error' },
             { status: 500 }
@@ -90,6 +106,22 @@ export async function GET(request, { params }) {
 export async function POST(request, { params }) {
     try {
         const { id } = params
+
+        console.log('POST /api/problems/[id]/comments - Handler entered:', request.method, 'id:', id)
+
+        // Validate UUID format BEFORE any database operation
+        if (!id || typeof id !== 'string' || !UUID_REGEX.test(id)) {
+            console.log('Invalid problem id received:', id)
+            return NextResponse.json(
+                { error: 'Invalid problem id' },
+                { status: 400 }
+            )
+        }
+
+        // Dynamic imports to avoid import-time crashes on Vercel
+        const { getAuthenticatedUser } = await import('@/lib/auth-helper')
+        const { commentSchema } = await import('@/lib/validation')
+        const { sanitizeCommentText } = await import('@/lib/sanitize')
 
         // Check authentication using token from Authorization header
         const { user, error: authError, supabase } = await getAuthenticatedUser(request)
@@ -121,7 +153,7 @@ export async function POST(request, { params }) {
 
         const { text } = validatedData
 
-        // Sanitize text to prevent XSS attacks
+        // Sanitize text to prevent XSS attacks (now synchronous)
         const sanitizedText = sanitizeCommentText(text)
 
         // Insert comment
@@ -155,7 +187,8 @@ export async function POST(request, { params }) {
 
         return NextResponse.json({ comment: data }, { status: 201 })
     } catch (error) {
-        console.error('Unexpected error:', error)
+        console.error('Unexpected error in POST /api/problems/[id]/comments:', error)
+        console.error('Stack trace:', error.stack)
         return NextResponse.json(
             { error: 'Internal server error' },
             { status: 500 }
