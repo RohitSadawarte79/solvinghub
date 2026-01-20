@@ -41,7 +41,7 @@ export async function GET(request) {
 
         // Apply sorting
         if (sortBy === 'votes') {
-            query = query.order('vote_count', { ascending: false })
+            query = query.order('votes', { ascending: false })
         } else if (sortBy === 'views') {
             query = query.order('view_count', { ascending: false })
         } else {
@@ -136,9 +136,9 @@ export async function POST(request) {
                 challenges: challenges || [],
                 user_id: user.id,
                 status: 'open',
-                vote_count: 0,
-                view_count: 0,
-                comment_count: 0
+                votes: 0,
+                discussions: 0,
+                view_count: 0
             })
             .select(`
                 *,
