@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase-server'
-import { getAuthenticatedUser } from '@/lib/auth-helper'
 
-// Force Node.js runtime for compatibility with dependencies
+// Force Node.js runtime for compatibility
 export const runtime = 'nodejs'
+
+// UUID v4 regex pattern
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 /**
  * GET /api/problems/[id]
@@ -11,21 +12,35 @@ export const runtime = 'nodejs'
  */
 export async function GET(request, { params }) {
     try {
+        const { id } = await params
+
+        console.log('GET /api/problems/[id] called with id:', id)
+
+        // Validate UUID format
+        if (!id || typeof id !== 'string' || !UUID_REGEX.test(id)) {
+            console.log('Invalid problem id received:', id)
+            return NextResponse.json(
+                { error: 'Invalid problem id' },
+                { status: 400 }
+            )
+        }
+
+        // Dynamic import to avoid import-time crashes on Vercel
+        const { createClient } = await import('@/lib/supabase-server')
         const supabase = await createClient()
-        const { id } = params
 
         // Fetch problem with user details
         const { data, error } = await supabase
             .from('problems')
             .select(`
-        *,
-        users:user_id (
-          id,
-          display_name,
-          photo_url,
-          reputation
-        )
-      `)
+                *,
+                users:user_id (
+                    id,
+                    display_name,
+                    photo_url,
+                    reputation
+                )
+            `)
             .eq('id', id)
             .single()
 
@@ -43,16 +58,24 @@ export async function GET(request, { params }) {
             )
         }
 
+        if (!data) {
+            return NextResponse.json(
+                { error: 'Problem not found' },
+                { status: 404 }
+            )
+        }
+
         // Increment view count (fire and forget)
         supabase
             .from('problems')
-            .update({ view_count: data.view_count + 1 })
+            .update({ view_count: (data.view_count || 0) + 1 })
             .eq('id', id)
             .then()
 
         return NextResponse.json({ problem: data })
     } catch (error) {
-        console.error('Unexpected error:', error)
+        console.error('Unexpected error in GET /api/problems/[id]:', error)
+        console.error('Stack trace:', error.stack)
         return NextResponse.json(
             { error: 'Internal server error' },
             { status: 500 }
@@ -66,7 +89,21 @@ export async function GET(request, { params }) {
  */
 export async function PATCH(request, { params }) {
     try {
-        const { id } = params
+        const { id } = await params
+
+        console.log('PATCH /api/problems/[id] called with id:', id)
+
+        // Validate UUID format
+        if (!id || typeof id !== 'string' || !UUID_REGEX.test(id)) {
+            console.log('Invalid problem id received:', id)
+            return NextResponse.json(
+                { error: 'Invalid problem id' },
+                { status: 400 }
+            )
+        }
+
+        // Dynamic import to avoid import-time crashes on Vercel
+        const { getAuthenticatedUser } = await import('@/lib/auth-helper')
 
         // Check authentication using token from Authorization header
         const { user, error: authError, supabase } = await getAuthenticatedUser(request)
@@ -128,7 +165,8 @@ export async function PATCH(request, { params }) {
 
         return NextResponse.json({ problem: data })
     } catch (error) {
-        console.error('Unexpected error:', error)
+        console.error('Unexpected error in PATCH /api/problems/[id]:', error)
+        console.error('Stack trace:', error.stack)
         return NextResponse.json(
             { error: 'Internal server error' },
             { status: 500 }
@@ -142,7 +180,21 @@ export async function PATCH(request, { params }) {
  */
 export async function DELETE(request, { params }) {
     try {
-        const { id } = params
+        const { id } = await params
+
+        console.log('DELETE /api/problems/[id] called with id:', id)
+
+        // Validate UUID format
+        if (!id || typeof id !== 'string' || !UUID_REGEX.test(id)) {
+            console.log('Invalid problem id received:', id)
+            return NextResponse.json(
+                { error: 'Invalid problem id' },
+                { status: 400 }
+            )
+        }
+
+        // Dynamic import to avoid import-time crashes on Vercel
+        const { getAuthenticatedUser } = await import('@/lib/auth-helper')
 
         // Check authentication using token from Authorization header
         const { user, error: authError, supabase } = await getAuthenticatedUser(request)
@@ -190,7 +242,8 @@ export async function DELETE(request, { params }) {
 
         return NextResponse.json({ success: true })
     } catch (error) {
-        console.error('Unexpected error:', error)
+        console.error('Unexpected error in DELETE /api/problems/[id]:', error)
+        console.error('Stack trace:', error.stack)
         return NextResponse.json(
             { error: 'Internal server error' },
             { status: 500 }
