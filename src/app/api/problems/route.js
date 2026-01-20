@@ -15,6 +15,16 @@ export async function GET(request) {
         const { createClient } = await import('@/lib/supabase-server')
         const supabase = await createClient()
 
+        // Check auth status (optional - don't fail if not authenticated)
+        // This ensures the client has proper context but doesn't block public reads
+        try {
+            const { data: { user } } = await supabase.auth.getUser()
+            console.log('User auth status:', user ? `Authenticated: ${user.id}` : 'Anonymous')
+        } catch (authError) {
+            // Ignore auth errors - problems are publicly readable
+            console.log('Auth check failed (non-blocking):', authError.message)
+        }
+
         // Parse query parameters
         const { searchParams } = new URL(request.url)
         const limit = Math.min(parseInt(searchParams.get('limit') || '10', 10), 100)

@@ -18,40 +18,82 @@ export async function getAuthenticatedUser(request) {
 
         if (token) {
             // Validate the token with Supabase
-            const { data: { user }, error } = await supabase.auth.getUser(token)
+            try {
+                const { data: { user }, error } = await supabase.auth.getUser(token)
 
-            if (error || !user) {
+                if (error) {
+                    console.error('Token validation error:', error.message)
+                    return { 
+                        user: null, 
+                        error: error.message, 
+                        supabase 
+                    }
+                }
+
+                if (!user) {
+                    return { 
+                        user: null, 
+                        error: 'Invalid token - no user found', 
+                        supabase 
+                    }
+                }
+
+                return { user, error: null, supabase }
+            } catch (tokenError) {
+                console.error('Exception during token validation:', tokenError)
                 return { 
                     user: null, 
-                    error: error?.message || 'Invalid token', 
+                    error: tokenError.message, 
+                    supabase 
+                }
+            }
+        }
+
+        // No token provided - try to get user from session cookies
+        try {
+            const { data: { user }, error } = await supabase.auth.getUser()
+
+            if (error) {
+                console.log('Session validation error (non-critical):', error.message)
+                return { 
+                    user: null, 
+                    error: error.message, 
+                    supabase 
+                }
+            }
+
+            if (!user) {
+                return { 
+                    user: null, 
+                    error: 'No user session', 
                     supabase 
                 }
             }
 
             return { user, error: null, supabase }
-        }
-
-        // No token provided - try to get user from session cookies
-        const { data: { user }, error } = await supabase.auth.getUser()
-
-        if (error || !user) {
+        } catch (sessionError) {
+            console.error('Exception during session validation:', sessionError)
             return { 
                 user: null, 
-                error: error?.message || 'No user session', 
+                error: sessionError.message, 
                 supabase 
             }
         }
-
-        return { user, error: null, supabase }
     } catch (error) {
-        console.error('Error in getAuthenticatedUser:', error)
+        console.error('Fatal error in getAuthenticatedUser:', error)
         
-        // Return a basic supabase client even on error
-        const supabase = await createClient()
-        return { 
-            user: null, 
-            error: error.message, 
-            supabase 
+        // Return a basic supabase client even on fatal error
+        try {
+            const supabase = await createClient()
+            return { 
+                user: null, 
+                error: error.message, 
+                supabase 
+            }
+        } catch (fallbackError) {
+            // This should never happen, but handle it gracefully
+            console.error('Failed to create fallback client:', fallbackError)
+            throw new Error('Unable to initialize Supabase client')
         }
     }
 }
