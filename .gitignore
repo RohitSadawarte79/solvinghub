@@ -66,3 +66,14 @@ supabase/.temp/
 
 # Migration status docs (not needed in production)
 MIGRATION_*.md
+API_ROUTE_STRUCTURE.md
+AUTH_ERROR_FIX.md
+BACKEND_STABILIZATION_COMPLETE.md
+AUTH_FIX_SUMMARY.md
+BACKEND_STABILIZATION_COMPLETE.md
+DEBUG_AUTH_ANALYSIS.md
+HOTFIX_COLUMN_NAMES.md
+SECURITY.md
+SECURITY.md
+supabase-schema.sql
+supabase-state-machine.sql
