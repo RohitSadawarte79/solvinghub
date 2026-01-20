@@ -88,8 +88,15 @@ export async function GET(request) {
         })
     } catch (error) {
         console.error('Unexpected error in GET /api/problems:', error)
+        console.error('Error name:', error?.name)
+        console.error('Error message:', error?.message)
+        console.error('Error stack:', error?.stack)
         return NextResponse.json(
-            { error: 'Internal server error', details: error.message },
+            { 
+                error: 'Internal server error', 
+                details: error?.message || 'Unknown error',
+                type: error?.name || 'Error'
+            },
             { status: 500 }
         )
     }

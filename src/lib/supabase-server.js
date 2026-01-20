@@ -1,9 +1,10 @@
 import { createServerClient } from '@supabase/ssr'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
-import { cookies } from 'next/headers'
 
 export async function createClient() {
     try {
+        // Dynamic import of cookies to avoid issues in different contexts
+        const { cookies } = await import('next/headers')
         const cookieStore = await cookies()
 
         return createServerClient(
@@ -36,14 +37,14 @@ export async function createClient() {
         )
     } catch (error) {
         console.error('Error creating Supabase client:', error)
-        // Fallback: create client without cookie handling
-        return createServerClient(
+        // Fallback: create client without cookie handling using basic client
+        return createSupabaseClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL,
             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
             {
-                cookies: {
-                    getAll() { return [] },
-                    setAll() { /* no-op */ },
+                auth: {
+                    persistSession: false,
+                    autoRefreshToken: false,
                 },
             }
         )
@@ -52,22 +53,42 @@ export async function createClient() {
 
 // Alternative: Simple read-only client for API routes
 export async function createClientForApiRoute() {
-    const cookieStore = await cookies()
+    try {
+        const { cookies } = await import('next/headers')
+        const cookieStore = await cookies()
 
-    return createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-        {
-            cookies: {
-                getAll() {
-                    return cookieStore.getAll()
+        return createServerClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+            {
+                cookies: {
+                    getAll() {
+                        try {
+                            return cookieStore.getAll()
+                        } catch {
+                            return []
+                        }
+                    },
+                    setAll() {
+                        // Do nothing - API routes are read-only for cookies
+                    },
                 },
-                setAll() {
-                    // Do nothing - API routes are read-only for cookies
+            }
+        )
+    } catch (error) {
+        console.error('Error creating API route client:', error)
+        // Fallback to basic client
+        return createSupabaseClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+            {
+                auth: {
+                    persistSession: false,
+                    autoRefreshToken: false,
                 },
-            },
-        }
-    )
+            }
+        )
+    }
 }
 
 // Admin client for server-side operations that need to bypass RLS
