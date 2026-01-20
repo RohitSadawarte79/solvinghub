@@ -6,9 +6,18 @@ export async function middleware(request) {
         request,
     })
 
+    // Skip middleware if env vars are missing (during build or misconfiguration)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+        console.warn('Middleware: Missing Supabase env vars, skipping auth refresh')
+        return supabaseResponse
+    }
+
     const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        supabaseUrl,
+        supabaseAnonKey,
         {
             cookies: {
                 getAll() {
@@ -32,11 +41,14 @@ export async function middleware(request) {
 
     // Refresh session if expired - required for Server Components
     // This will also update the cookies
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
-
-    // console.log('Middleware: User authenticated:', !!user)
+    try {
+        const {
+            data: { user },
+        } = await supabase.auth.getUser()
+        // console.log('Middleware: User authenticated:', !!user)
+    } catch (error) {
+        console.error('Middleware: Auth refresh failed:', error)
+    }
 
     return supabaseResponse
 }
@@ -45,11 +57,12 @@ export const config = {
     matcher: [
         /*
          * Match all request paths except for the ones starting with:
+         * - api (API routes - they handle their own auth)
          * - _next/static (static files)
          * - _next/image (image optimization files)
          * - favicon.ico (favicon file)
          * - public folder
          */
-        '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+        '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
     ],
 }
