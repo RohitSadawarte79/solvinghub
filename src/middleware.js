@@ -66,3 +66,6 @@ export const config = {
         '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
     ],
 }
+
+console.log("SUPABASE URL:", process.env.NEXT_PUBLIC_SUPABASE_URL)
+console.log("SUPABASE KEY:", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.slice(0, 10))
