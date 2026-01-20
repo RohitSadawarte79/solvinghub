@@ -1,15 +1,30 @@
 import { createServerClient } from '@supabase/ssr'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
+/**
+ * Creates a Supabase client for server-side operations.
+ * Uses cookies from next/headers for session management.
+ * 
+ * IMPORTANT: Middleware now refreshes tokens for ALL routes including /api/*
+ * This ensures tokens are fresh when this client reads them.
+ */
 export async function createClient() {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+    // Fail fast if env vars are missing
+    if (!supabaseUrl || !supabaseAnonKey) {
+        throw new Error('Missing Supabase environment variables')
+    }
+
     try {
         // Dynamic import of cookies to avoid issues in different contexts
         const { cookies } = await import('next/headers')
         const cookieStore = await cookies()
 
         return createServerClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+            supabaseUrl,
+            supabaseAnonKey,
             {
                 cookies: {
                     getAll() {
@@ -25,22 +40,23 @@ export async function createClient() {
                             cookiesToSet.forEach(({ name, value, options }) =>
                                 cookieStore.set(name, value, options)
                             )
-                        } catch (error) {
-                            // The `setAll` method was called from a Server Component.
-                            // This can be ignored if you have middleware refreshing
-                            // user sessions.
-                            console.log('Cookie set failed (non-blocking):', error.message)
+                        } catch {
+                            // Cookie set fails in Server Components - this is expected
+                            // Middleware handles token refresh, so this is non-blocking
                         }
                     },
                 },
             }
         )
     } catch (error) {
-        console.error('Error creating Supabase client:', error)
-        // Fallback: create client without cookie handling using basic client
+        // Log the actual error for debugging
+        console.error('Error creating Supabase SSR client:', error?.message || error)
+        
+        // Return anonymous client - user will appear logged out
+        // This is safer than throwing and causing 500 errors
         return createSupabaseClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+            supabaseUrl,
+            supabaseAnonKey,
             {
                 auth: {
                     persistSession: false,
