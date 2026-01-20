@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 /**
  * GET /api/problems
@@ -16,8 +17,8 @@ export async function GET(request) {
 
         // Parse query parameters
         const { searchParams } = new URL(request.url)
-        const limit = parseInt(searchParams.get('limit') || '10', 10)
-        const offset = parseInt(searchParams.get('offset') || '0', 10)
+        const limit = Math.min(parseInt(searchParams.get('limit') || '10', 10), 100)
+        const offset = Math.max(parseInt(searchParams.get('offset') || '0', 10), 0)
         const sortBy = searchParams.get('sort_by') || 'created_at'
         const category = searchParams.get('category')
 
@@ -56,7 +57,7 @@ export async function GET(request) {
         if (error) {
             console.error('Error fetching problems:', error)
             return NextResponse.json(
-                { error: 'Failed to fetch problems' },
+                { error: 'Failed to fetch problems', details: error.message },
                 { status: 500 }
             )
         }
@@ -66,12 +67,15 @@ export async function GET(request) {
             total: count || 0,
             limit,
             offset
+        }, {
+            headers: {
+                'Cache-Control': 'no-store, max-age=0'
+            }
         })
     } catch (error) {
         console.error('Unexpected error in GET /api/problems:', error)
-        console.error('Stack trace:', error.stack)
         return NextResponse.json(
-            { error: 'Internal server error' },
+            { error: 'Internal server error', details: error.message },
             { status: 500 }
         )
     }
@@ -84,6 +88,17 @@ export async function GET(request) {
 export async function POST(request) {
     try {
         console.log('POST /api/problems - Handler entered')
+
+        // Parse body first to catch JSON errors early
+        let body
+        try {
+            body = await request.json()
+        } catch (error) {
+            return NextResponse.json(
+                { error: 'Invalid JSON body' },
+                { status: 400 }
+            )
+        }
 
         // Dynamic imports to avoid import-time crashes on Vercel
         const { getAuthenticatedUser } = await import('@/lib/auth-helper')
@@ -99,8 +114,6 @@ export async function POST(request) {
             )
         }
 
-        const body = await request.json()
-
         // Validate with Zod schema
         let validatedData
         try {
@@ -109,10 +122,10 @@ export async function POST(request) {
             return NextResponse.json(
                 {
                     error: 'Validation failed',
-                    details: error.errors.map(e => ({
-                        field: e.path.join('.'),
+                    details: error.errors?.map(e => ({
+                        field: e.path?.join('.') || 'unknown',
                         message: e.message
-                    }))
+                    })) || []
                 },
                 { status: 400 }
             )
@@ -120,7 +133,7 @@ export async function POST(request) {
 
         const { title, description, category, tags, impacts, challenges } = validatedData
 
-        // Sanitize inputs (now synchronous - no await needed)
+        // Sanitize inputs
         const sanitizedTitle = sanitizeTitle(title)
         const sanitizedDescription = sanitizeProblemDescription(description)
 
@@ -154,7 +167,7 @@ export async function POST(request) {
         if (error) {
             console.error('Error creating problem:', error)
             return NextResponse.json(
-                { error: 'Failed to create problem' },
+                { error: 'Failed to create problem', details: error.message },
                 { status: 500 }
             )
         }
@@ -162,9 +175,8 @@ export async function POST(request) {
         return NextResponse.json({ problem: data }, { status: 201 })
     } catch (error) {
         console.error('Unexpected error in POST /api/problems:', error)
-        console.error('Stack trace:', error.stack)
         return NextResponse.json(
-            { error: 'Internal server error' },
+            { error: 'Internal server error', details: error.message },
             { status: 500 }
         )
     }
