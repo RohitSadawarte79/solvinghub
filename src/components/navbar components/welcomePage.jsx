@@ -300,7 +300,7 @@ export default function WelcomePage() {
                 Discover Problems <ArrowUpRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
-            <Link href="/submit">
+            <Link href="/post">
               <Button style={{ cursor: 'pointer' }} size="lg" variant="outline">
                 Submit a Problem
               </Button>
