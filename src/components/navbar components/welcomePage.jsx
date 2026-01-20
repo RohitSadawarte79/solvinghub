@@ -170,18 +170,15 @@ export default function WelcomePage() {
     e.preventDefault();
 
     if (!email.trim() || !email.includes('@')) {
-      toast({
-        title: "Invalid Email",
-        description: "Please enter a valid email address.",
-        variant: "destructive"
+      toast.error("Invalid Email", {
+        description: "Please enter a valid email address."
       });
       return;
     }
 
     // Here you would typically send this to your backend/Firebase
     // For now, we'll just show a success message
-    toast({
-      title: "Subscription Successful",
+    toast.success("Subscription Successful", {
       description: "Thank you for subscribing to our newsletter!"
     });
 

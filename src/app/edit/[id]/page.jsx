@@ -110,10 +110,8 @@ export default function EditProblem({ params }) {
 
   const handleFetchError = (error) => {
     console.error("Error fetching problem:", error);
-    toast({
-      title: "Error",
-      description: "Failed to load problem data. Please try again.",
-      variant: "destructive"
+    toast.error("Error", {
+      description: "Failed to load problem data. Please try again."
     });
     setIsLoading(false);
   };

@@ -198,10 +198,8 @@ export default function DiscoverProblems() {
       } catch (error) {
         console.error("Error fetching problems:", error);
         setError("Failed to load problems. Please try again later.");
-        toast({
-          title: "Error",
-          description: "Unable to fetch problems. Please try again.",
-          variant: "destructive"
+        toast.error("Unable to fetch problems", {
+          description: "Please try again later."
         });
       } finally {
         setLoading(false);

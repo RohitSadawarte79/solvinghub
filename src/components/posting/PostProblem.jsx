@@ -177,10 +177,8 @@ export default function PostProblem() {
     e.preventDefault();
 
     if (!validateForm()) {
-      toast({
-        title: "Validation Error",
-        description: "Please fix the errors in the form.",
-        variant: "destructive"
+      toast.error("Validation Error", {
+        description: "Please fix the errors in the form."
       });
       setActiveView('edit'); // Switch back to edit mode to fix errors
       return;
