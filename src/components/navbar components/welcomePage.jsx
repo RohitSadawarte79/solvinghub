@@ -51,6 +51,10 @@ export default function WelcomePage() {
     const fetchProblems = async () => {
       setLoading(true);
       try {
+        console.log('Fetching problems...');
+        console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+        console.log('Has Anon Key:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+
         let query = supabase
           .from('problems')
           .select('*')

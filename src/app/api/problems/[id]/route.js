@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
 import { getAuthenticatedUser } from '@/lib/auth-helper'
 
+// Force Node.js runtime for compatibility with dependencies
+export const runtime = 'nodejs'
+
 /**
  * GET /api/problems/[id]
  * Fetch a single problem by ID with full details

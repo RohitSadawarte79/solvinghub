@@ -3,6 +3,9 @@ import { createClient } from '@/lib/supabase-server'
 import { replySchema } from '@/lib/validation'
 import { sanitizeCommentText } from '@/lib/sanitize'
 
+// Force Node.js runtime for compatibility with isomorphic-dompurify
+export const runtime = 'nodejs'
+
 /**
  * POST /api/comments/[id]/replies
  * Create a reply to a comment

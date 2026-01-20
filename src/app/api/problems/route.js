@@ -5,6 +5,9 @@ import { headers, cookies } from 'next/headers'
 import { problemSchema } from '@/lib/validation'
 import { sanitizeProblemData } from '@/lib/sanitize'
 
+// Force Node.js runtime for compatibility with isomorphic-dompurify
+export const runtime = 'nodejs'
+
 /**
  * GET /api/problems
  * Fetch problems with CURSOR-BASED pagination (scalable, consistent results)
