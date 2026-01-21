@@ -159,6 +159,7 @@ export default function DiscoverProblems() {
 
       try {
         setLoading(true);
+        setError(null); // Clear previous errors
 
         // Build query parameters
         const params = new URLSearchParams();
@@ -174,32 +175,72 @@ export default function DiscoverProblems() {
         }
 
         // Call API endpoint
-        console.log('Calling API:', `/api/problems?${params.toString()}`);
-        const response = await fetch(`/api/problems?${params.toString()}`);
+        const apiUrl = `/api/problems?${params.toString()}`;
+        console.log('[DiscoverProblems] Calling API:', apiUrl);
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-        console.log('API Response status:', response.status);
-        console.log('API Response ok:', response.ok);
+        try {
+          const response = await fetch(apiUrl, {
+            signal: controller.signal,
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          clearTimeout(timeoutId);
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-          console.error('API Error:', errorData);
-          throw new Error(errorData.error || 'Failed to fetch problems');
+          console.log('[DiscoverProblems] API Response status:', response.status);
+          console.log('[DiscoverProblems] API Response ok:', response.ok);
+          console.log('[DiscoverProblems] API Response content-type:', response.headers.get('content-type'));
+
+          if (!response.ok) {
+            let errorData;
+            const contentType = response.headers.get('content-type');
+            
+            // Check if response is JSON or HTML
+            if (contentType && contentType.includes('application/json')) {
+              errorData = await response.json();
+            } else {
+              // Server returned HTML error page (500 from Vercel)
+              const htmlText = await response.text();
+              console.error('[DiscoverProblems] Server returned HTML error page:', htmlText.substring(0, 200));
+              throw new Error(`Server error (${response.status}): Unable to fetch problems. Please try again later.`);
+            }
+            
+            console.error('[DiscoverProblems] API Error:', errorData);
+            throw new Error(errorData.error || errorData.details || 'Failed to fetch problems');
+          }
+
+          const data = await response.json();
+          console.log('[DiscoverProblems] API Response data:', data);
+
+          // Transform data to include calculated fields
+          const transformedProblems = data.problems.map(problem => ({
+            ...problem,
+            createdAt: calculateTimeAgo(new Date(problem.created_at))
+          }));
+
+          console.log('[DiscoverProblems] Transformed', transformedProblems.length, 'problems');
+          setProblems(transformedProblems);
+        } catch (fetchError) {
+          if (fetchError.name === 'AbortError') {
+            throw new Error('Request timeout - please check your connection and try again');
+          }
+          throw fetchError;
         }
-
-        const data = await response.json();
-
-        // Transform data to include calculated fields
-        const transformedProblems = data.problems.map(problem => ({
-          ...problem,
-          createdAt: calculateTimeAgo(new Date(problem.created_at))
-        }));
-
-        setProblems(transformedProblems);
       } catch (error) {
-        console.error("Error fetching problems:", error);
-        setError("Failed to load problems. Please try again later.");
+        console.error("[DiscoverProblems] Error fetching problems:", error);
+        console.error("[DiscoverProblems] Error type:", error?.constructor?.name);
+        console.error("[DiscoverProblems] Error message:", error?.message);
+        
+        const errorMessage = error?.message || "Failed to load problems. Please try again later.";
+        setError(errorMessage);
+        
         toast.error("Unable to fetch problems", {
-          description: "Please try again later."
+          description: errorMessage
         });
       } finally {
         setLoading(false);

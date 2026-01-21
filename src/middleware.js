@@ -2,6 +2,13 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 
 export async function middleware(request) {
+    const path = request.nextUrl.pathname
+    const isApiRoute = path.startsWith('/api/')
+    
+    if (isApiRoute) {
+        console.log('[Middleware] Processing API route:', path)
+    }
+
     let supabaseResponse = NextResponse.next({
         request,
     })
@@ -11,43 +18,47 @@ export async function middleware(request) {
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
     if (!supabaseUrl || !supabaseAnonKey) {
-        console.warn('Middleware: Missing Supabase env vars, skipping auth refresh')
+        console.warn('[Middleware] Missing Supabase env vars, skipping auth refresh')
         return supabaseResponse
     }
 
-    const supabase = createServerClient(
-        supabaseUrl,
-        supabaseAnonKey,
-        {
-            cookies: {
-                getAll() {
-                    return request.cookies.getAll()
-                },
-                setAll(cookiesToSet) {
-                    try {
-                        // Only set on response cookies (request cookies are read-only in middleware)
-                        cookiesToSet.forEach(({ name, value, options }) => {
-                            supabaseResponse.cookies.set(name, value, options)
-                        })
-                    } catch (error) {
-                        // Session refresh failures should be non-fatal
-                        // User will be prompted to re-login on next auth check
-                        console.error('Failed to set auth cookies:', error)
-                    }
-                },
-            },
-        }
-    )
-
-    // Refresh session if expired - required for Server Components
-    // This will also update the cookies
     try {
+        const supabase = createServerClient(
+            supabaseUrl,
+            supabaseAnonKey,
+            {
+                cookies: {
+                    getAll() {
+                        return request.cookies.getAll()
+                    },
+                    setAll(cookiesToSet) {
+                        try {
+                            // Only set on response cookies (request cookies are read-only in middleware)
+                            cookiesToSet.forEach(({ name, value, options }) => {
+                                supabaseResponse.cookies.set(name, value, options)
+                            })
+                        } catch (error) {
+                            // Session refresh failures should be non-fatal
+                            // User will be prompted to re-login on next auth check
+                            console.error('[Middleware] Failed to set auth cookies:', error?.message || error)
+                        }
+                    },
+                },
+            }
+        )
+
+        // Refresh session if expired - required for Server Components
+        // This will also update the cookies
         const {
             data: { user },
         } = await supabase.auth.getUser()
-        // console.log('Middleware: User authenticated:', !!user)
+        
+        if (isApiRoute && user) {
+            console.log('[Middleware] API route accessed by authenticated user:', user.id)
+        }
     } catch (error) {
-        console.error('Middleware: Auth refresh failed:', error)
+        console.error('[Middleware] Auth refresh failed:', error?.message || error)
+        // Don't block the request - let the route handler deal with auth
     }
 
     return supabaseResponse

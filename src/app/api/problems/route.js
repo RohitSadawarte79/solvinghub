@@ -6,22 +6,61 @@ export const dynamic = 'force-dynamic'
 /**
  * GET /api/problems
  * List problems with pagination and sorting
+ * Public route - no authentication required
  */
 export async function GET(request) {
+    const startTime = Date.now()
+    console.log('[API] GET /api/problems - Request started')
+    
     try {
+        // Check environment variables first
+        if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+            console.error('[API] Missing Supabase environment variables')
+            return NextResponse.json(
+                { error: 'Server configuration error', details: 'Missing database configuration' },
+                { status: 500 }
+            )
+        }
+
         // Dynamic import to avoid import-time crashes on Vercel
         let supabase
         try {
+            console.log('[API] Creating Supabase client...')
             const { createClient } = await import('@/lib/supabase-server')
             supabase = await createClient()
+            console.log('[API] Supabase client created successfully')
         } catch (clientError) {
-            console.error('Failed to create Supabase client:', clientError)
-            // Fallback: Create basic client directly
-            const { createClient: createBasicClient } = await import('@supabase/supabase-js')
-            supabase = createBasicClient(
-                process.env.NEXT_PUBLIC_SUPABASE_URL,
-                process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-            )
+            console.error('[API] Failed to create Supabase SSR client:', clientError?.message || clientError)
+            // Fallback: Create basic anonymous client directly
+            try {
+                const { createClient: createBasicClient } = await import('@supabase/supabase-js')
+                supabase = createBasicClient(
+                    process.env.NEXT_PUBLIC_SUPABASE_URL,
+                    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+                    {
+                        auth: {
+                            persistSession: false,
+                            autoRefreshToken: false,
+                        }
+                    }
+                )
+                console.log('[API] Fallback anonymous client created')
+            } catch (fallbackError) {
+                console.error('[API] Failed to create fallback client:', fallbackError?.message || fallbackError)
+                return NextResponse.json(
+                    { error: 'Database connection failed', details: 'Unable to initialize database client' },
+                    { status: 500 }
+                )
+            }
+        }
+
+        // Non-blocking auth check for logging
+        try {
+            const { data: { user } } = await supabase.auth.getUser()
+            console.log('[API] Request by:', user ? `User ${user.id}` : 'Anonymous')
+        } catch (authError) {
+            // Auth check is optional for public routes - just log and continue
+            console.log('[API] Auth check failed (non-blocking):', authError?.message || 'Unknown auth error')
         }
 
         // Parse query parameters safely
@@ -32,11 +71,14 @@ export async function GET(request) {
             offset = Math.max(parseInt(searchParams.get('offset') || '0', 10), 0)
             sortBy = searchParams.get('sort_by') || 'created_at'
             category = searchParams.get('category')
+            console.log('[API] Query params:', { limit, offset, sortBy, category })
         } catch (parseError) {
-            console.error('Error parsing query params:', parseError)
+            console.error('[API] Error parsing query params:', parseError?.message || parseError)
+            // Continue with defaults
         }
 
         // Build query - simplified for reliability
+        console.log('[API] Building Supabase query...')
         let query = supabase
             .from('problems')
             .select('*', { count: 'exact' })
@@ -58,15 +100,27 @@ export async function GET(request) {
         // Apply pagination
         query = query.range(offset, offset + limit - 1)
 
+        console.log('[API] Executing Supabase query...')
         const { data, error, count } = await query
 
         if (error) {
-            console.error('Supabase query error:', error)
+            const duration = Date.now() - startTime
+            console.error('[API] Supabase query error:', error?.message || error)
+            console.error('[API] Error code:', error?.code)
+            console.error('[API] Error details:', error?.details)
+            console.error('[API] Request duration:', duration, 'ms')
             return NextResponse.json(
-                { error: 'Failed to fetch problems', details: error.message || 'Query failed' },
+                { 
+                    error: 'Failed to fetch problems', 
+                    details: error.message || 'Query failed',
+                    hint: error.hint || 'Check database connection and RLS policies'
+                },
                 { status: 500 }
             )
         }
+
+        const duration = Date.now() - startTime
+        console.log('[API] Query successful - returned', data?.length || 0, 'problems in', duration, 'ms')
 
         return NextResponse.json({
             problems: data || [],
@@ -75,17 +129,29 @@ export async function GET(request) {
             offset
         }, {
             headers: {
-                'Cache-Control': 'no-store, max-age=0'
+                'Cache-Control': 'no-store, max-age=0',
+                'Content-Type': 'application/json'
             }
         })
     } catch (error) {
-        console.error('API route error:', error)
+        const duration = Date.now() - startTime
+        console.error('[API] Unexpected error in GET /api/problems:', error)
+        console.error('[API] Error type:', error?.constructor?.name)
+        console.error('[API] Error stack:', error?.stack)
+        console.error('[API] Request duration:', duration, 'ms')
+        
         return NextResponse.json(
             { 
                 error: 'Internal server error', 
-                details: String(error?.message || error || 'Unknown error')
+                details: String(error?.message || error || 'Unknown error'),
+                timestamp: new Date().toISOString()
             },
-            { status: 500 }
+            { 
+                status: 500,
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            }
         )
     }
 }
@@ -93,45 +159,67 @@ export async function GET(request) {
 /**
  * POST /api/problems
  * Create a new problem
+ * Requires authentication
  */
 export async function POST(request) {
+    const startTime = Date.now()
+    console.log('[API] POST /api/problems - Request started')
+
     try {
-        console.log('POST /api/problems - Handler entered')
+        // Check environment variables first
+        if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+            console.error('[API] Missing Supabase environment variables')
+            return NextResponse.json(
+                { error: 'Server configuration error' },
+                { status: 500 }
+            )
+        }
 
         // Parse body first to catch JSON errors early
         let body
         try {
             body = await request.json()
-        } catch (error) {
+            console.log('[API] Request body parsed successfully')
+        } catch (jsonError) {
+            console.error('[API] Invalid JSON body:', jsonError?.message || jsonError)
             return NextResponse.json(
-                { error: 'Invalid JSON body' },
+                { error: 'Invalid JSON body', details: 'Request body must be valid JSON' },
                 { status: 400 }
             )
         }
 
         // Dynamic imports to avoid import-time crashes on Vercel
+        console.log('[API] Loading dependencies...')
         const { getAuthenticatedUser } = await import('@/lib/auth-helper')
         const { problemSchema } = await import('@/lib/validation')
         const { sanitizeTitle, sanitizeProblemDescription } = await import('@/lib/sanitize')
 
         // Check authentication
+        console.log('[API] Checking authentication...')
         const { user, error: authError, supabase } = await getAuthenticatedUser(request)
         if (authError || !user) {
+            const duration = Date.now() - startTime
+            console.log('[API] Authentication failed:', authError || 'No user', 'duration:', duration, 'ms')
             return NextResponse.json(
-                { error: 'Unauthorized' },
+                { error: 'Unauthorized', details: 'You must be logged in to create a problem' },
                 { status: 401 }
             )
         }
 
+        console.log('[API] User authenticated:', user.id)
+
         // Validate with Zod schema
         let validatedData
         try {
+            console.log('[API] Validating request data...')
             validatedData = problemSchema.parse(body)
-        } catch (error) {
+        } catch (validationError) {
+            const duration = Date.now() - startTime
+            console.error('[API] Validation failed:', validationError?.message || validationError)
             return NextResponse.json(
                 {
                     error: 'Validation failed',
-                    details: error.errors?.map(e => ({
+                    details: validationError.errors?.map(e => ({
                         field: e.path?.join('.') || 'unknown',
                         message: e.message
                     })) || []
@@ -143,10 +231,12 @@ export async function POST(request) {
         const { title, description, category, tags, impacts, challenges } = validatedData
 
         // Sanitize inputs
+        console.log('[API] Sanitizing inputs...')
         const sanitizedTitle = sanitizeTitle(title)
         const sanitizedDescription = sanitizeProblemDescription(description)
 
         // Insert problem
+        console.log('[API] Inserting problem into database...')
         const { data, error } = await supabase
             .from('problems')
             .insert({
@@ -174,18 +264,33 @@ export async function POST(request) {
             .single()
 
         if (error) {
-            console.error('Error creating problem:', error)
+            const duration = Date.now() - startTime
+            console.error('[API] Error creating problem:', error?.message || error)
+            console.error('[API] Error code:', error?.code)
+            console.error('[API] Error details:', error?.details)
+            console.error('[API] Request duration:', duration, 'ms')
             return NextResponse.json(
-                { error: 'Failed to create problem', details: error.message },
+                { error: 'Failed to create problem', details: error.message || 'Database insert failed' },
                 { status: 500 }
             )
         }
 
+        const duration = Date.now() - startTime
+        console.log('[API] Problem created successfully in', duration, 'ms')
         return NextResponse.json({ problem: data }, { status: 201 })
     } catch (error) {
-        console.error('Unexpected error in POST /api/problems:', error)
+        const duration = Date.now() - startTime
+        console.error('[API] Unexpected error in POST /api/problems:', error)
+        console.error('[API] Error type:', error?.constructor?.name)
+        console.error('[API] Error stack:', error?.stack)
+        console.error('[API] Request duration:', duration, 'ms')
+        
         return NextResponse.json(
-            { error: 'Internal server error', details: error.message },
+            { 
+                error: 'Internal server error', 
+                details: error?.message || 'Unknown error',
+                timestamp: new Date().toISOString()
+            },
             { status: 500 }
         )
     }

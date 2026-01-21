@@ -7,6 +7,9 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js'
  * 
  * IMPORTANT: Middleware now refreshes tokens for ALL routes including /api/*
  * This ensures tokens are fresh when this client reads them.
+ * 
+ * This function implements multiple fallback strategies to ensure it always
+ * returns a working client, even if cookie handling fails.
  */
 export async function createClient() {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -14,6 +17,9 @@ export async function createClient() {
 
     // Fail fast if env vars are missing
     if (!supabaseUrl || !supabaseAnonKey) {
+        console.error('[supabase-server] Missing Supabase environment variables')
+        console.error('[supabase-server] NEXT_PUBLIC_SUPABASE_URL:', !!supabaseUrl)
+        console.error('[supabase-server] NEXT_PUBLIC_SUPABASE_ANON_KEY:', !!supabaseAnonKey)
         throw new Error('Missing Supabase environment variables')
     }
 
@@ -22,6 +28,7 @@ export async function createClient() {
         const { cookies } = await import('next/headers')
         const cookieStore = await cookies()
 
+        console.log('[supabase-server] Creating SSR client with cookie handling')
         return createServerClient(
             supabaseUrl,
             supabaseAnonKey,
@@ -29,9 +36,11 @@ export async function createClient() {
                 cookies: {
                     getAll() {
                         try {
-                            return cookieStore.getAll()
+                            const allCookies = cookieStore.getAll()
+                            console.log('[supabase-server] Retrieved', allCookies?.length || 0, 'cookies')
+                            return allCookies
                         } catch (error) {
-                            console.error('Error getting cookies:', error)
+                            console.error('[supabase-server] Error getting cookies:', error?.message || error)
                             return []
                         }
                     },
@@ -40,9 +49,10 @@ export async function createClient() {
                             cookiesToSet.forEach(({ name, value, options }) =>
                                 cookieStore.set(name, value, options)
                             )
-                        } catch {
+                        } catch (error) {
                             // Cookie set fails in Server Components - this is expected
                             // Middleware handles token refresh, so this is non-blocking
+                            console.log('[supabase-server] Cookie set failed (expected in Server Components)')
                         }
                     },
                 },
@@ -50,7 +60,8 @@ export async function createClient() {
         )
     } catch (error) {
         // Log the actual error for debugging
-        console.error('Error creating Supabase SSR client:', error?.message || error)
+        console.error('[supabase-server] Error creating Supabase SSR client:', error?.message || error)
+        console.log('[supabase-server] Falling back to anonymous client')
         
         // Return anonymous client - user will appear logged out
         // This is safer than throwing and causing 500 errors
