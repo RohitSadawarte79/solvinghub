@@ -60,7 +60,7 @@ export async function createClient() {
         )
     } catch (error) {
         // Log the actual error for debugging
-        console.error('[supabase-server] Error creating Supabase SSR client:', error?.message || error)
+        console.error('[supabase-server] Error creating Supabase SSR client:', String(error?.message || error))
         console.log('[supabase-server] Falling back to anonymous client')
         
         // Return anonymous client - user will appear logged out

@@ -57,7 +57,7 @@ export async function middleware(request) {
             console.log('[Middleware] API route accessed by authenticated user:', user.id)
         }
     } catch (error) {
-        console.error('[Middleware] Auth refresh failed:', error?.message || error)
+        console.error('[Middleware] Auth refresh failed:', String(error?.message || error))
         // Don't block the request - let the route handler deal with auth
     }
 

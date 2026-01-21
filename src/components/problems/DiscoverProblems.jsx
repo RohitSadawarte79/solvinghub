@@ -52,6 +52,10 @@ import {
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
+// Constants for better maintainability
+const REQUEST_TIMEOUT_MS = 30000; // 30 seconds
+const ERROR_LOG_PREVIEW_LENGTH = 200; // Characters to log from error HTML
+
 export default function DiscoverProblems() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -179,7 +183,7 @@ export default function DiscoverProblems() {
         console.log('[DiscoverProblems] Calling API:', apiUrl);
         
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
         try {
           const response = await fetch(apiUrl, {
@@ -206,7 +210,7 @@ export default function DiscoverProblems() {
             } else {
               // Server returned HTML error page (500 from Vercel)
               const htmlText = await response.text();
-              console.error('[DiscoverProblems] Server returned HTML error page:', htmlText.substring(0, 200));
+              console.error('[DiscoverProblems] Server returned HTML error page:', htmlText.substring(0, ERROR_LOG_PREVIEW_LENGTH));
               throw new Error(`Server error (${response.status}): Unable to fetch problems. Please try again later.`);
             }
             
