@@ -25,10 +25,7 @@
 - [Setup Instructions](#-setup-instructions)
 - [Environment Variables](#-environment-variables)
 - [How to Run Locally](#-how-to-run-locally)
-- [How to Deploy](#-how-to-deploy)
 - [Security Model](#-security-model)
-- [Common Issues & Debugging](#-common-issues--debugging)
-- [Performance Considerations](#-performance-considerations)
 - [Future Improvements](#-future-improvements)
 - [Contributing](#-contributing)
 - [Credits](#-credits)
@@ -98,7 +95,6 @@ SolvingHub is a full-stack web application that enables:
 | **React Hook Form** | Form state management |
 | **Zod** | Schema validation |
 | **Sonner** | Toast notifications |
-| **Three.js** | 3D globe visualization (landing page) |
 
 ### Backend
 | Technology | Purpose |
@@ -564,36 +560,6 @@ npm run lint
 
 ---
 
-## 🌐 How to Deploy
-
-### Deploy to Vercel (Recommended)
-
-1. **Connect Repository**
-   - Go to [vercel.com](https://vercel.com)
-   - Import your GitHub repository
-
-2. **Configure Environment Variables**
-   - In Vercel dashboard, go to **Settings > Environment Variables**
-   - Add all variables from `.env.local`
-
-3. **Deploy**
-   - Push to `main` branch
-   - Vercel auto-deploys
-
-4. **Update OAuth Redirect URLs**
-   - Add your Vercel domain to Google Cloud Console
-   - Update Supabase redirect URL whitelist
-
-### Post-Deployment Checklist
-
-- [ ] Verify environment variables are set
-- [ ] Test Google OAuth login
-- [ ] Verify API routes respond correctly
-- [ ] Check database connection
-- [ ] Test problem creation and voting
-
----
-
 ## 🛡️ Security Model
 
 ### Row Level Security (RLS)
@@ -647,97 +613,6 @@ See `SECURITY.md` for detailed security documentation.
 
 ---
 
-## 🐛 Common Issues & Debugging
-
-### Issue: 500 Error on API Routes (Vercel)
-
-**Symptoms**: API routes return 500 errors in production but work locally.
-
-**Causes & Fixes**:
-1. **Missing environment variables**
-   - Verify all env vars are set in Vercel dashboard
-   - Check spelling (`NEXT_PUBLIC_` prefix required for client-side vars)
-
-2. **Import-time crashes**
-   - All imports in API routes use dynamic import:
-   ```javascript
-   // ✅ Correct - inside handler
-   export async function GET() {
-       const { createClient } = await import('@/lib/supabase-server');
-   }
-   
-   // ❌ Wrong - top-level import can crash
-   import { createClient } from '@/lib/supabase-server';
-   ```
-
-### Issue: "Unauthorized" Error on Protected Routes
-
-**Symptoms**: User is logged in but API returns 401.
-
-**Fixes**:
-1. **Use the API wrapper** - Always use `api.post()` not `fetch()`:
-   ```javascript
-   import { api } from '@/lib/api';
-   const response = await api.post('/api/problems', data);
-   ```
-
-2. **Check middleware** - Ensure middleware refreshes tokens
-
-### Issue: Hydration Mismatch Errors
-
-**Symptoms**: "Hydration failed" error in console.
-
-**Fix**: Use mounted guard in client components:
-```javascript
-const [mounted, setMounted] = useState(false);
-useEffect(() => setMounted(true), []);
-if (!mounted) return null;
-```
-
-### Issue: Google OAuth Not Working
-
-**Checklist**:
-1. Redirect URI in Google Console matches exactly
-2. Supabase has correct Client ID/Secret
-3. Cookie settings allow third-party
-
-### Debug Logging
-
-API routes log detailed errors to Vercel Functions logs:
-```bash
-# View logs in Vercel dashboard
-Project > Deployments > Functions > View Logs
-```
-
----
-
-## ⚡ Performance Considerations
-
-### Database Optimizations
-
-1. **Indexes** - Key columns are indexed:
-   - `problems(category)`, `problems(status)`
-   - `problems(votes DESC, created_at DESC)`
-   - Full-text search on `title + description`
-
-2. **Triggers** - Vote/discussion counts maintained via triggers (no N+1 queries)
-
-3. **Pagination** - Limit + offset with max 100 per request
-
-### Frontend Optimizations
-
-1. **Lazy Loading** - Components loaded as needed
-2. **Optimistic Updates** - UI updates before server responds
-3. **Debounced Search** - Prevents excessive API calls
-
-### Recommendations
-
-- [ ] Add Redis caching for frequently accessed problems
-- [ ] Implement cursor-based pagination for large datasets
-- [ ] Add CDN for static assets
-- [ ] Consider server-side rendering for SEO
-
----
 
 ## 🔮 Future Improvements
 
@@ -799,9 +674,6 @@ Follow conventional commits:
 
 **Created by:**
 - Rohit Sadawarte
-- Rohit Singh
-- Rajnish Malviya
-- Ritik Pawar
 
 **Built with:**
 - [Next.js](https://nextjs.org/)
