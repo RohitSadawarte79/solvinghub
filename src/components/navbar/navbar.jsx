@@ -7,6 +7,7 @@ import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Menu, X } from 'lucide-react'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
 
 export default function Navbar() {
   const [user, setUser] = useState(null)
@@ -29,27 +30,28 @@ export default function Navbar() {
   }
 
   return (
-    <nav className="fixed top-0 left-0 w-full px-4 sm:px-6 py-4 flex justify-between items-center shadow-sm border-b bg-white z-50">
+    <nav className="fixed top-0 left-0 w-full px-4 sm:px-6 py-4 flex justify-between items-center shadow-sm border-b bg-background z-50">
       {/* Left: Logo + Navigation Links (Desktop) */}
       <div className="flex items-center gap-3 sm:gap-6">
-        <Link href="/" className="text-xl font-bold text-black">
+        <Link href="/" className="text-xl font-bold text-foreground">
           SolvingHub
         </Link>
         <div className="hidden md:flex items-center gap-4 sm:gap-6">
-          <Link href="/discover" className="text-sm text-muted-foreground hover:text-black">
+          <Link href="/discover" className="text-sm text-muted-foreground hover:text-foreground">
             Explore
           </Link>
-          <Link href="/post" className="text-sm text-muted-foreground hover:text-black">
+          <Link href="/post" className="text-sm text-muted-foreground hover:text-foreground">
             Post
           </Link>
-          <Link href="/my-problems" className="text-sm text-muted-foreground hover:text-black">
+          <Link href="/my-problems" className="text-sm text-muted-foreground hover:text-foreground">
             My Problems
           </Link>
         </div>
       </div>
 
       {/* Right: User Login / Avatar (Desktop) */}
-      <div className="hidden md:block">
+      <div className="hidden md:flex items-center gap-4">
+        <ThemeToggle />
         {user ? (
           <div className="flex items-center gap-4">
             <Avatar>
@@ -68,16 +70,17 @@ export default function Navbar() {
       </div>
 
       {/* Mobile Menu Toggle */}
-      <div className="md:hidden flex items-center">
+      <div className="md:hidden flex items-center gap-2">
+        <ThemeToggle />
         {user && (
-          <Avatar className="mr-4">
+          <Avatar className="mr-2">
             <AvatarImage src={user?.photoURL || ''} />
             <AvatarFallback>{user?.displayName?.[0] || 'U'}</AvatarFallback>
           </Avatar>
         )}
-        <button 
-          onClick={toggleMobileMenu} 
-          className="text-slate-700 focus:outline-none"
+        <button
+          onClick={toggleMobileMenu}
+          className="text-foreground focus:outline-none"
           aria-label="Toggle menu"
         >
           {mobileMenuOpen ? (
@@ -90,34 +93,34 @@ export default function Navbar() {
 
       {/* Mobile Menu Dropdown */}
       {mobileMenuOpen && (
-        <div className="absolute top-full left-0 w-full bg-white shadow-md py-4 px-6 z-50 md:hidden border-b border-slate-200">
+        <div className="absolute top-full left-0 w-full bg-background shadow-md py-4 px-6 z-50 md:hidden border-b border-border">
           <div className="flex flex-col gap-4">
-            <Link 
-              href="/discover" 
-              className="text-sm text-muted-foreground hover:text-black py-2"
+            <Link
+              href="/discover"
+              className="text-sm text-muted-foreground hover:text-foreground py-2"
               onClick={() => setMobileMenuOpen(false)}
             >
               Explore
             </Link>
-            <Link 
-              href="/post" 
-              className="text-sm text-muted-foreground hover:text-black py-2"
+            <Link
+              href="/post"
+              className="text-sm text-muted-foreground hover:text-foreground py-2"
               onClick={() => setMobileMenuOpen(false)}
             >
               Post
             </Link>
-            <Link 
-              href="/my-problems" 
-              className="text-sm text-muted-foreground hover:text-black py-2"
+            <Link
+              href="/my-problems"
+              className="text-sm text-muted-foreground hover:text-foreground py-2"
               onClick={() => setMobileMenuOpen(false)}
             >
               My Problems
             </Link>
-            <div className="pt-2 border-t border-slate-200">
+            <div className="pt-2 border-t border-border">
               {user ? (
-                <Button 
-                  style={{ cursor: 'pointer' }} 
-                  variant="outline" 
+                <Button
+                  style={{ cursor: 'pointer' }}
+                  variant="outline"
                   onClick={handleLogout}
                   className="w-full"
                 >
