@@ -1,5 +1,5 @@
-import WelcomePage from "@/components/navbar components/welcomePage";
+import { redirect } from 'next/navigation';
 
 export default function Home() {
-  return <WelcomePage />;
+  redirect('/home');
 }

@@ -1,7 +1,10 @@
-"use client";
+import MyProblemsClient from "./MyProblemsClient";
 
-import MyProblems from '@/components/submitted problems/myProblems';
+export const metadata = {
+  title: 'My Problems — SolvingHub',
+  description: 'View, edit, and manage the problems you have submitted to SolvingHub.',
+};
 
 export default function MyProblemsPage() {
-  return <MyProblems />;
+  return <MyProblemsClient />;
 }

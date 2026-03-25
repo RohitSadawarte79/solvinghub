@@ -1,35 +1,37 @@
 "use client"
 
+import { calculateTimeAgo } from '@/lib/timeUtils';
+
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { 
-  ThumbsUp, 
-  MessageSquare, 
+import {
+  ThumbsUp,
+  MessageSquare,
   AlertCircle
 } from 'lucide-react';
 import { Tabs, TabsList, TabsContent, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from "sonner";
 
 // Firebase imports
-import { 
-  doc, 
-  getDoc, 
-  updateDoc, 
-  collection, 
-  addDoc, 
-  query, 
-  where, 
-  orderBy, 
+import {
+  doc,
+  getDoc,
+  updateDoc,
+  collection,
+  addDoc,
+  query,
+  where,
+  orderBy,
   getDocs,
   deleteDoc,
   serverTimestamp,
@@ -76,28 +78,28 @@ export default function ProblemDetail({ params }) {
       // Check if user has voted on the problem
       const problemVoteRef = collection(db, "votes");
       const problemVoteQuery = query(
-        problemVoteRef, 
-        where("userId", "==", userId), 
+        problemVoteRef,
+        where("userId", "==", userId),
         where("problemId", "==", problemId)
       );
       const problemVoteSnapshot = await getDocs(problemVoteQuery);
       const hasVotedOnProblem = !problemVoteSnapshot.empty;
-      
+
       // Check which comments the user has voted on
       const commentVotesRef = collection(db, "commentVotes");
       const commentVotesQuery = query(
-        commentVotesRef, 
-        where("userId", "==", userId), 
+        commentVotesRef,
+        where("userId", "==", userId),
         where("problemId", "==", problemId)
       );
       const commentVotesSnapshot = await getDocs(commentVotesQuery);
-      
+
       const commentVotesData = {};
       commentVotesSnapshot.forEach(doc => {
         const data = doc.data();
         commentVotesData[data.commentId] = true;
       });
-      
+
       setUserVotes({
         problem: hasVotedOnProblem,
         comments: commentVotesData
@@ -111,14 +113,14 @@ export default function ProblemDetail({ params }) {
   useEffect(() => {
     const fetchProblem = async () => {
       if (!problemId) return;
-      
+
       setLoading(true);
       setError(null);
-      
+
       try {
         const problemRef = doc(db, "problems", problemId);
         const problemSnap = await getDoc(problemRef);
-        
+
         if (problemSnap.exists()) {
           const problemData = {
             id: problemSnap.id,
@@ -142,24 +144,24 @@ export default function ProblemDetail({ params }) {
         setLoading(false);
       }
     };
-    
+
     fetchProblem();
   }, [problemId]);
 
   // Fetch and subscribe to comments
   useEffect(() => {
     if (!problemId) return;
-    
+
     setLoadingComments(true);
-    
+
     // Create a query for comments
     const commentsRef = collection(db, "comments");
     const commentsQuery = query(
-      commentsRef, 
+      commentsRef,
       where("problemId", "==", problemId),
       orderBy("timestamp", "desc")
     );
-    
+
     // Setup real-time listener for comments
     const unsubscribe = onSnapshot(commentsQuery, async (snapshot) => {
       try {
@@ -171,27 +173,27 @@ export default function ProblemDetail({ params }) {
               ...doc.data(),
               createdAt: calculateTimeAgo(doc.data().timestamp?.toDate())
             };
-            
+
             // Fetch replies for this comment
             const repliesRef = collection(db, "replies");
             const repliesQuery = query(
-              repliesRef, 
-              where("commentId", "==", doc.id), 
+              repliesRef,
+              where("commentId", "==", doc.id),
               orderBy("timestamp", "asc")
             );
             const repliesSnapshot = await getDocs(repliesQuery);
-            
+
             // Add replies to the comment
             comment.replies = repliesSnapshot.docs.map(replyDoc => ({
               id: replyDoc.id,
               ...replyDoc.data(),
               createdAt: calculateTimeAgo(replyDoc.data().timestamp?.toDate())
             }));
-            
+
             return comment;
           })
         );
-        
+
         setComments(commentsData);
       } catch (error) {
         console.error("Error fetching comments:", error);
@@ -207,44 +209,12 @@ export default function ProblemDetail({ params }) {
       console.error("Error in comments listener:", error);
       setLoadingComments(false);
     });
-    
+
     // Cleanup subscription on unmount
     return () => unsubscribe();
   }, [problemId]);
 
-  // Calculate time ago (e.g., "3 days ago")
-  const calculateTimeAgo = (date) => {
-    if (!date) return "Unknown date";
-    
-    const seconds = Math.floor((new Date() - date) / 1000);
-    
-    let interval = seconds / 31536000; // seconds in a year
-    if (interval > 1) {
-      return Math.floor(interval) + " years ago";
-    }
-    
-    interval = seconds / 2592000; // seconds in a month
-    if (interval > 1) {
-      return Math.floor(interval) + " months ago";
-    }
-    
-    interval = seconds / 86400; // seconds in a day
-    if (interval > 1) {
-      return Math.floor(interval) + " days ago";
-    }
-    
-    interval = seconds / 3600; // seconds in an hour
-    if (interval > 1) {
-      return Math.floor(interval) + " hours ago";
-    }
-    
-    interval = seconds / 60; // seconds in a minute
-    if (interval > 1) {
-      return Math.floor(interval) + " minutes ago";
-    }
-    
-    return Math.floor(seconds) + " seconds ago";
-  };
+  // calculateTimeAgo imported from @/lib/timeUtils
 
   // Handle problem upvote
   const handleVoteProblem = async () => {
@@ -257,36 +227,36 @@ export default function ProblemDetail({ params }) {
       router.push('/login?redirect=/problems/' + problemId);
       return;
     }
-    
+
     try {
       const userId = auth.currentUser.uid;
-      
+
       // Check if user has already voted
       if (userVotes.problem) {
         // Remove vote
         const votesRef = collection(db, "votes");
         const voteQuery = query(
-          votesRef, 
-          where("userId", "==", userId), 
+          votesRef,
+          where("userId", "==", userId),
           where("problemId", "==", problemId)
         );
-        
+
         const voteSnapshot = await getDocs(voteQuery);
-        
+
         if (!voteSnapshot.empty) {
           // Delete vote document
           await deleteDoc(voteSnapshot.docs[0].ref);
-          
+
           // Update problem vote count
           const problemRef = doc(db, "problems", problemId);
           await updateDoc(problemRef, {
             votes: increment(-1)
           });
-          
+
           // Update local state
           setProblem({ ...problem, votes: problem.votes - 1 });
           setUserVotes({ ...userVotes, problem: false });
-          
+
           toast({
             title: "Vote Removed",
             description: "Your vote has been removed from this problem."
@@ -299,17 +269,17 @@ export default function ProblemDetail({ params }) {
           problemId,
           timestamp: serverTimestamp()
         });
-        
+
         // Update problem vote count
         const problemRef = doc(db, "problems", problemId);
         await updateDoc(problemRef, {
           votes: increment(1)
         });
-        
+
         // Update local state
         setProblem({ ...problem, votes: problem.votes + 1 });
         setUserVotes({ ...userVotes, problem: true });
-        
+
         toast({
           title: "Vote Added",
           description: "Your vote has been added to this problem."
@@ -325,16 +295,12 @@ export default function ProblemDetail({ params }) {
     }
   };
 
-  // Handle comment upvote
-  const handleVoteComment = async (commentId) => {
-    // Comment upvote handler implementation would go here
-    console.log("Vote for comment:", commentId);
-  };
-  
+  // TODO: Implement comment voting in a future update
+
   // Handle comment submission
   const handleSubmitComment = async (e) => {
     e.preventDefault();
-    
+
     if (!auth.currentUser) {
       toast({
         title: "Authentication Required",
@@ -344,7 +310,7 @@ export default function ProblemDetail({ params }) {
       router.push('/login?redirect=/problems/' + problemId);
       return;
     }
-    
+
     if (!commentText.trim()) {
       toast({
         title: "Empty Comment",
@@ -353,7 +319,7 @@ export default function ProblemDetail({ params }) {
       });
       return;
     }
-    
+
     try {
       const newComment = {
         problemId,
@@ -364,22 +330,22 @@ export default function ProblemDetail({ params }) {
         votes: 0,
         timestamp: serverTimestamp()
       };
-      
+
       // Add comment to Firestore
       await addDoc(collection(db, "comments"), newComment);
-      
+
       // Update problem discussions count
       const problemRef = doc(db, "problems", problemId);
       await updateDoc(problemRef, {
         discussions: increment(1)
       });
-      
+
       // Update local state
       setProblem({ ...problem, discussions: problem.discussions + 1 });
-      
+
       // Clear the comment input
       setCommentText('');
-      
+
       toast({
         title: "Comment Posted",
         description: "Your comment has been added to the discussion."
@@ -393,7 +359,7 @@ export default function ProblemDetail({ params }) {
       });
     }
   };
-  
+
   // Handle reply submission
   const handleReplySubmit = async (commentId, replyText) => {
     if (!auth.currentUser) {
@@ -404,7 +370,7 @@ export default function ProblemDetail({ params }) {
       });
       return;
     }
-    
+
     if (!replyText || !replyText.trim()) {
       toast({
         title: "Empty Reply",
@@ -413,7 +379,7 @@ export default function ProblemDetail({ params }) {
       });
       return;
     }
-    
+
     try {
       const newReply = {
         commentId,
@@ -424,14 +390,14 @@ export default function ProblemDetail({ params }) {
         authorPhotoURL: auth.currentUser.photoURL || null,
         timestamp: serverTimestamp()
       };
-      
+
       // Add reply to Firestore
       await addDoc(collection(db, "replies"), newReply);
-      
+
       // Clear the reply input and hide reply box
-      setReplyText({...replyText, [commentId]: ''});
-      setShowReplyBox({...showReplyBox, [commentId]: false});
-      
+      setReplyText({ ...replyText, [commentId]: '' });
+      setShowReplyBox({ ...showReplyBox, [commentId]: false });
+
       toast({
         title: "Reply Posted",
         description: "Your reply has been added to the comment."
@@ -445,18 +411,18 @@ export default function ProblemDetail({ params }) {
       });
     }
   };
-  
+
   // Handle comment deletion
   const handleDeleteComment = async (commentId) => {
     if (!auth.currentUser) {
       return;
     }
-    
+
     try {
       // Get the comment to check if the current user is the author
       const commentRef = doc(db, "comments", commentId);
       const commentSnap = await getDoc(commentRef);
-      
+
       if (!commentSnap.exists()) {
         toast({
           title: "Error",
@@ -465,9 +431,9 @@ export default function ProblemDetail({ params }) {
         });
         return;
       }
-      
+
       const commentData = commentSnap.data();
-      
+
       // Check if the current user is the author of the comment
       if (commentData.authorId !== auth.currentUser.uid) {
         toast({
@@ -477,31 +443,31 @@ export default function ProblemDetail({ params }) {
         });
         return;
       }
-      
+
       // Delete all replies to this comment
       const repliesRef = collection(db, "replies");
       const repliesQuery = query(repliesRef, where("commentId", "==", commentId));
       const repliesSnapshot = await getDocs(repliesQuery);
       // Create a batch
       const batch = writeBatch(db);
-      
+
       // Add all reply deletions to the batch
       repliesSnapshot.forEach(replyDoc => {
         batch.delete(replyDoc.ref);
       });
-      
+
       // Add comment deletion to the batch
       batch.delete(commentRef);
-      
+
       // Commit the batch
       await batch.commit();
-      
+
       // Update problem discussions count
       const problemRef = doc(db, "problems", problemId);
       await updateDoc(problemRef, {
         discussions: increment(-1)
       });
-  
+
       toast({
         title: "Comment Deleted",
         description: "Your comment and its replies have been deleted."
@@ -589,7 +555,7 @@ export default function ProblemDetail({ params }) {
           </div>
 
           <div className="flex gap-4">
-            <Button 
+            <Button
               style={{ cursor: 'pointer' }}
               variant={userVotes.problem ? "default" : "outline"}
               className="flex items-center gap-2 text-sm"
@@ -634,9 +600,9 @@ export default function ProblemDetail({ params }) {
                   </p>
                 )}
                 <div className="flex justify-end">
-                  <Button 
-                    style={{ cursor: 'pointer' }} 
-                    type="submit" 
+                  <Button
+                    style={{ cursor: 'pointer' }}
+                    type="submit"
                     disabled={!auth.currentUser || !commentText.trim()}
                     size="sm"
                     className="text-xs sm:text-sm"
@@ -676,10 +642,10 @@ export default function ProblemDetail({ params }) {
                           </div>
                         </div>
                         {auth.currentUser && comment.authorId === auth.currentUser.uid && (
-                          <Button 
+                          <Button
                             style={{ cursor: 'pointer' }}
-                            variant="ghost" 
-                            size="sm" 
+                            variant="ghost"
+                            size="sm"
                             onClick={() => handleDeleteComment(comment.id)}
                             className="text-red-500 hover:text-red-700 hover:bg-red-50 text-xs p-1 sm:p-2"
                           >
@@ -690,17 +656,17 @@ export default function ProblemDetail({ params }) {
                     </CardHeader>
                     <CardContent className="px-4 sm:px-6 py-2 pb-4">
                       <p className="whitespace-pre-wrap text-sm sm:text-base">{comment.text}</p>
-                      
+
                       {/* Reply button and comments */}
                       <div className="mt-3 sm:mt-4">
                         <div className="flex items-center gap-2 mt-2">
-                          <Button 
+                          <Button
                             style={{ cursor: 'pointer' }}
-                            variant="ghost" 
-                            size="sm" 
+                            variant="ghost"
+                            size="sm"
                             className="text-slate-500 text-xs sm:text-sm p-1 sm:p-2 h-auto"
                             onClick={() => setShowReplyBox({
-                              ...showReplyBox, 
+                              ...showReplyBox,
                               [comment.id]: !showReplyBox[comment.id]
                             })}
                           >
@@ -708,7 +674,7 @@ export default function ProblemDetail({ params }) {
                             Reply
                           </Button>
                         </div>
-                        
+
                         {/* Reply form */}
                         {showReplyBox[comment.id] && (
                           <div className="mt-3 sm:mt-4 pl-3 sm:pl-6 border-l-2 border-slate-200">
@@ -722,7 +688,7 @@ export default function ProblemDetail({ params }) {
                               })}
                               disabled={!auth.currentUser}
                             />
-                            <Button 
+                            <Button
                               style={{ cursor: 'pointer' }}
                               size="sm"
                               onClick={() => handleReplySubmit(comment.id, replyText[comment.id])}
@@ -733,7 +699,7 @@ export default function ProblemDetail({ params }) {
                             </Button>
                           </div>
                         )}
-                        
+
                         {/* Replies */}
                         {comment.replies && comment.replies.length > 0 && (
                           <div className="mt-3 sm:mt-4 pl-3 sm:pl-6 border-l-2 border-slate-200 space-y-3 sm:space-y-4">
@@ -760,7 +726,7 @@ export default function ProblemDetail({ params }) {
             )}
           </div>
         </TabsContent>
-        
+
         <TabsContent value="solutions">
           <div className="py-6 sm:py-8 text-center text-slate-500 text-sm sm:text-base">
             Solutions feature coming soon.

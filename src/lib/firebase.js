@@ -1,17 +1,22 @@
 // Import the functions you need from the SDKs
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore"; // ✅ import Firestore
+import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBU48KNiPzNBlztiEENN7zL8wzD3-3awQQ",
-  authDomain: "solvinghub-eba06.firebaseapp.com",
-  projectId: "solvinghub-eba06",
-  storageBucket: "solvinghub-eba06.firebasestorage.app",
-  messagingSenderId: "423918766967",
-  appId: "1:423918766967:web:460657c65462b5f7a02f72",
-  measurementId: "G-61SVNKHMTG"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
+
+// Validate that required env vars are set
+if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+  console.error("Missing required Firebase environment variables. Check your .env.local file.");
+}
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);

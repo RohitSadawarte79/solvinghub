@@ -16,11 +16,11 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsContent, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  ChevronLeft, 
-  Edit, 
-  Trash2, 
-  MessageSquare, 
+import {
+  ChevronLeft,
+  Edit,
+  Trash2,
+  MessageSquare,
   ThumbsUp,
   Menu,
   X
@@ -69,21 +69,21 @@ export default function MyProblems() {
 
   const fetchUserProblems = async (currentUser) => {
     if (!currentUser) return;
-    
+
     try {
       setLoading(true);
       const q = query(
         collection(db, "problems"),
-        where("submittedBy", "==", currentUser.displayName || "Anonymous"),
+        where("submittedById", "==", currentUser.uid),
         orderBy("timestamp", "desc")
       );
-      
+
       const querySnapshot = await getDocs(q);
       const problemsData = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
       }));
-      
+
       setProblems(problemsData);
     } catch (error) {
       console.error("Error fetching problems:", error);
@@ -149,7 +149,7 @@ export default function MyProblems() {
       </SheetTrigger>
       <SheetContent side="bottom" className="max-h-72">
         <div className="flex flex-col gap-2 py-4">
-          <Button 
+          <Button
             variant={activeTab === 'all' ? "default" : "ghost"}
             className="justify-start"
             onClick={() => {
@@ -160,8 +160,8 @@ export default function MyProblems() {
             All Problems
           </Button>
           {categories.map(category => (
-            <Button 
-              key={category} 
+            <Button
+              key={category}
               variant={activeTab === category ? "default" : "ghost"}
               className="justify-start"
               onClick={() => {
@@ -186,7 +186,7 @@ export default function MyProblems() {
             <span className="sm:inline">Back to Problems</span>
           </Button>
         </Link>
-        
+
         <div className='mt-3'>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-slate-50 mb-2">My Problems</h1>
           <p className="text-sm md:text-base text-slate-600 dark:text-slate-300">
@@ -194,7 +194,7 @@ export default function MyProblems() {
           </p>
         </div>
       </div>
-      
+
       {problems.length === 0 ? (
         <Card className="text-center py-8 md:py-16">
           <CardContent>
@@ -213,7 +213,7 @@ export default function MyProblems() {
         <>
           {/* Mobile category selector */}
           <MobileCategorySelector />
-          
+
           {/* Desktop tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6 hidden md:block">
             <TabsList className="mb-4 flex flex-wrap">
@@ -225,7 +225,7 @@ export default function MyProblems() {
               ))}
             </TabsList>
           </Tabs>
-            
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {filteredProblems().map((problem) => (
               <Card key={problem.id} className="flex flex-col h-full hover:shadow-md transition-shadow">
@@ -250,7 +250,7 @@ export default function MyProblems() {
                     {problem.description}
                   </CardDescription>
                 </CardHeader>
-                
+
                 <CardContent className="pb-2 md:pb-3 flex-grow">
                   <div className="flex flex-wrap gap-1 mb-2">
                     {problem.tags.slice(0, 3).map((tag, index) => (
@@ -268,17 +268,17 @@ export default function MyProblems() {
                     Posted: {problem.createdAt}
                   </div>
                 </CardContent>
-                
+
                 <CardFooter className="pt-2 border-t border-slate-100 dark:border-slate-800">
                   <div className="flex justify-between w-full">
                     <Button style={{ cursor: 'pointer' }} variant="ghost" size="sm" className="text-xs md:text-sm" onClick={() => handleEdit(problem.id)}>
                       <Edit className="h-3 w-3 md:h-4 md:w-4 mr-1" /> Edit
                     </Button>
-                    
+
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button style={{ cursor: 'pointer' }}
-                          variant="ghost" 
+                          variant="ghost"
                           size="sm"
                           className="text-xs md:text-sm text-red-500 hover:text-red-700 hover:bg-red-50"
                           onClick={() => setDeleteId(problem.id)}
@@ -309,7 +309,7 @@ export default function MyProblems() {
               </Card>
             ))}
           </div>
-          
+
           <div className="mt-6 md:mt-8 flex justify-center">
             <Link href="/post">
               <Button style={{ cursor: 'pointer' }}>Post New Problem</Button>

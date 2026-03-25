@@ -1,15 +1,16 @@
 'use client'
 import Link from 'next/link'
+import { CATEGORIES } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
 
 import { useState, useEffect } from 'react';
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle
 } from '@/components/ui/card';
 import {
   Tabs,
@@ -17,7 +18,7 @@ import {
   TabsList,
   TabsTrigger
 } from '@/components/ui/tabs';
-import { 
+import {
   Search,
   Users,
   MessageSquare,
@@ -40,19 +41,16 @@ export default function WelcomePage() {
   const [problems, setProblems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('trending');
-  
-  const categories = [
-    "Education", "Technology", "Health", "Environment", 
-    "Food & Agriculture", "Transportation", "Finance", "Social"
-  ];
-  
+
+  const categories = CATEGORIES;
+
   // Fetch problems from Firebase based on tab selection
   useEffect(() => {
     const fetchProblems = async () => {
       setLoading(true);
       try {
         let problemsQuery;
-        
+
         switch (activeTab) {
           case 'trending':
             problemsQuery = query(
@@ -82,24 +80,24 @@ export default function WelcomePage() {
               limit(3)
             );
         }
-        
+
         // Apply category filter if selected
         if (selectedCategory) {
           problemsQuery = query(
             collection(db, "problems"),
             where("category", "==", selectedCategory),
-            orderBy(activeTab === 'recent' ? "timestamp" : 
-                   activeTab === 'most-discussed' ? "discussions" : "votes", "desc"),
+            orderBy(activeTab === 'recent' ? "timestamp" :
+              activeTab === 'most-discussed' ? "discussions" : "votes", "desc"),
             limit(3)
           );
         }
-        
+
         const querySnapshot = await getDocs(problemsQuery);
         const problemsList = querySnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         }));
-        
+
         setProblems(problemsList);
       } catch (error) {
         console.error("Error fetching problems:", error);
@@ -112,29 +110,29 @@ export default function WelcomePage() {
         setLoading(false);
       }
     };
-    
+
     fetchProblems();
   }, [activeTab, selectedCategory]);
-  
+
   // Handle search functionality - redirect to discover page with search term
   const handleSearch = (e) => {
     e.preventDefault();
-    
+
     if (!searchTerm.trim()) return;
-    
+
     // Redirect to the discover problems page with the search term
     router.push(`/discover?search=${encodeURIComponent(searchTerm)}`);
   };
-  
+
   // Handle filter by category
   const handleCategoryFilter = (category) => {
     setSelectedCategory(category === selectedCategory ? '' : category);
   };
-  
+
   // Handle email subscription
   const handleSubscribe = (e) => {
     e.preventDefault();
-    
+
     if (!email.trim() || !email.includes('@')) {
       toast({
         title: "Invalid Email",
@@ -143,14 +141,14 @@ export default function WelcomePage() {
       });
       return;
     }
-    
+
     // Here you would typically send this to your backend/Firebase
     // For now, we'll just show a success message
     toast({
       title: "Subscription Successful",
       description: "Thank you for subscribing to our newsletter!"
     });
-    
+
     setEmail('');
   };
 
@@ -232,38 +230,38 @@ export default function WelcomePage() {
               Problem-First, Not Solution-First
             </div>
           </div>
-          
+
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-slate-900 dark:text-slate-50 mb-6">
             Welcome to <span className="text-blue-600 dark:text-blue-400">SolvingHub</span>
           </h1>
-          
+
           <p className="text-lg text-slate-600 dark:text-slate-300 max-w-2xl mb-8">
             The community-driven platform where real-world problems meet innovative solutions.
             Discover, discuss, and collaborate on problems that matter.
           </p>
-          
+
           <div className="flex flex-col sm:flex-row gap-4">
             <Link href="/discover">
               <Button style={{ cursor: 'pointer' }} size="lg" className="bg-blue-600 hover:bg-blue-700">
                 Discover Problems <ArrowUpRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
-            <Link href="/submit">
+            <Link href="/post">
               <Button style={{ cursor: 'pointer' }} size="lg" variant="outline">
                 Submit a Problem
               </Button>
             </Link>
           </div>
         </div>
-        
+
         {/* Search and Filter */}
         <div>
           <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4 mb-6 p-4">
             <div className="relative flex-grow">
               <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-              <input 
-                type="text" 
-                placeholder="Search for problems..." 
+              <input
+                type="text"
+                placeholder="Search for problems..."
                 className="pl-10 flex h-12 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -273,16 +271,15 @@ export default function WelcomePage() {
               <Search className="mr-2 h-4 w-4" /> Search
             </Button>
           </form>
-          
+
           <div className="flex flex-wrap gap-2 p-4">
             {categories.map((category) => (
-              <div 
-                key={category} 
-                className={`inline-block px-3 py-1 rounded-full text-sm cursor-pointer transition-colors ${
-                  selectedCategory === category 
-                    ? 'bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-300' 
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
-                }`}
+              <div
+                key={category}
+                className={`inline-block px-3 py-1 rounded-full text-sm cursor-pointer transition-colors ${selectedCategory === category
+                  ? 'bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-300'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                  }`}
                 onClick={() => handleCategoryFilter(category)}
               >
                 {category}
@@ -290,7 +287,7 @@ export default function WelcomePage() {
             ))}
           </div>
         </div>
-        
+
         {/* Features Section */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
           <Card className="border border-slate-200 dark:border-slate-700">
@@ -306,7 +303,7 @@ export default function WelcomePage() {
               </p>
             </CardContent>
           </Card>
-          
+
           <Card className="border border-slate-200 dark:border-slate-700">
             <CardHeader>
               <div className="mb-2">
@@ -320,7 +317,7 @@ export default function WelcomePage() {
               </p>
             </CardContent>
           </Card>
-          
+
           <Card className="border border-slate-200 dark:border-slate-700">
             <CardHeader>
               <div className="mb-2">
@@ -335,20 +332,20 @@ export default function WelcomePage() {
             </CardContent>
           </Card>
         </div>
-        
+
         {/* Featured Problems */}
         <div className="mb-16">
           <h2 className="text-2xl font-bold mb-6 text-slate-900 dark:text-slate-50">
             Featured Problems
           </h2>
-          
+
           <Tabs defaultValue="trending" value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-6">
               <TabsTrigger value="trending">Trending</TabsTrigger>
               <TabsTrigger value="recent">Recent</TabsTrigger>
               <TabsTrigger value="most-discussed">Most Discussed</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="trending">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {loading ? (
@@ -370,7 +367,7 @@ export default function WelcomePage() {
                   </div>
                 )}
               </div>
-              
+
               {problems.length > 0 && (
                 <div className="flex justify-center mt-8">
                   <Link href="/discover">
@@ -381,7 +378,7 @@ export default function WelcomePage() {
                 </div>
               )}
             </TabsContent>
-            
+
             <TabsContent value="recent">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {loading ? (
@@ -403,7 +400,7 @@ export default function WelcomePage() {
                   </div>
                 )}
               </div>
-              
+
               {problems.length > 0 && (
                 <div className="flex justify-center mt-8">
                   <Link href="/discover?sort=recent">
@@ -414,7 +411,7 @@ export default function WelcomePage() {
                 </div>
               )}
             </TabsContent>
-            
+
             <TabsContent value="most-discussed">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {loading ? (
@@ -436,7 +433,7 @@ export default function WelcomePage() {
                   </div>
                 )}
               </div>
-              
+
               {problems.length > 0 && (
                 <div className="flex justify-center mt-8">
                   <Link href="/discover?sort=most-discussed">
@@ -449,13 +446,13 @@ export default function WelcomePage() {
             </TabsContent>
           </Tabs>
         </div>
-        
+
         {/* How It Works */}
         <div className="mb-16">
           <h2 className="text-2xl font-bold mb-8 text-center text-slate-900 dark:text-slate-50">
             How SolvingHub Works
           </h2>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div className="flex flex-col items-center text-center">
               <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mb-4">
@@ -466,7 +463,7 @@ export default function WelcomePage() {
                 Browse real-world problems across various categories and domains
               </p>
             </div>
-            
+
             <div className="flex flex-col items-center text-center">
               <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mb-4">
                 <MessageSquare className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -476,7 +473,7 @@ export default function WelcomePage() {
                 Participate in discussions and brainstorm potential solutions
               </p>
             </div>
-            
+
             <div className="flex flex-col items-center text-center">
               <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mb-4">
                 <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -486,7 +483,7 @@ export default function WelcomePage() {
                 Form teams and work together on tackling challenging problems
               </p>
             </div>
-            
+
             <div className="flex flex-col items-center text-center">
               <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mb-4">
                 <CheckCircle className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -498,7 +495,7 @@ export default function WelcomePage() {
             </div>
           </div>
         </div>
-        
+
         {/* Join Community */}
         <Card className="border border-slate-200 dark:border-slate-700 mb-16">
           <CardHeader>
@@ -521,7 +518,7 @@ export default function WelcomePage() {
             </form>
           </CardContent>
         </Card>
-        
+
         {/* Footer */}
         <footer className="border-t border-slate-200 dark:border-slate-700 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center">

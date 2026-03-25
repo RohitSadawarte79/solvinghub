@@ -5,7 +5,7 @@ import { db } from '@/lib/firebase';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useForm, FormProvider } from 'react-hook-form';
+import { CATEGORIES } from '@/lib/constants';
 import {
   Card,
   CardContent,
@@ -32,13 +32,13 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsContent, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  X, 
-  Plus, 
-  PlusCircle, 
-  MinusCircle, 
-  ChevronLeft, 
-  AlertCircle 
+import {
+  X,
+  Plus,
+  PlusCircle,
+  MinusCircle,
+  ChevronLeft,
+  AlertCircle
 } from 'lucide-react';
 import { toast } from "sonner";
 import {
@@ -56,7 +56,6 @@ import {
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 export default function PostProblem() {
   const router = useRouter();
-  const methods = useForm();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
@@ -69,20 +68,16 @@ export default function PostProblem() {
   const [errors, setErrors] = useState({});
   const [hasChanges, setHasChanges] = useState(false);
 
-  // Categories list - matches the categories in DiscoverProblems
-  const categories = [
-    "Education", "Technology", "Health", "Environment", 
-    "Food & Agriculture", "Transportation", "Finance", "Social"
-  ];
+  const categories = CATEGORIES;
 
   useEffect(() => {
     // Track if user has made changes to form
     const hasContent = Boolean(
-      title || 
-      description || 
-      category || 
-      tags.length > 0 || 
-      impacts.some(impact => impact) || 
+      title ||
+      description ||
+      category ||
+      tags.length > 0 ||
+      impacts.some(impact => impact) ||
       challenges.some(challenge => challenge)
     );
     setHasChanges(hasContent);
@@ -91,7 +86,7 @@ export default function PostProblem() {
     e.preventDefault();
     const trimmedInput = tagInput.trim();
     const isValid = trimmedInput !== '' && !tags.includes(trimmedInput) && tags.length < 5;
-    
+
     if (isValid) {
       setTags([...tags, trimmedInput]);
       setTagInput('');
@@ -139,44 +134,44 @@ export default function PostProblem() {
 
   const validateForm = () => {
     const newErrors = {};
-    
+
     if (!title.trim()) {
       newErrors.title = "Title is required";
     } else if (title.length < 10) {
       newErrors.title = "Title should be at least 10 characters";
     }
-    
+
     if (!description.trim()) {
       newErrors.description = "Description is required";
     } else if (description.length < 50) {
       newErrors.description = "Description should be at least 50 characters";
     }
-    
+
     if (!category) {
       newErrors.category = "Category is required";
     }
-    
+
     if (tags.length === 0) {
       newErrors.tags = "At least one tag is required";
     }
-    
+
     const emptyImpacts = impacts.findIndex(impact => !impact.trim());
     if (emptyImpacts !== -1) {
       newErrors.impacts = `Impact #${emptyImpacts + 1} cannot be empty`;
     }
-    
+
     const emptyChallenges = challenges.findIndex(challenge => !challenge.trim());
     if (emptyChallenges !== -1) {
       newErrors.challenges = `Challenge #${emptyChallenges + 1} cannot be empty`;
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       toast({
         title: "Validation Error",
@@ -186,10 +181,10 @@ export default function PostProblem() {
       setActiveView('edit'); // Switch back to edit mode to fix errors
       return;
     }
-    
+
     // Clear any previous validation errors
     setErrors({});
-    
+
     if (!auth.currentUser) {
       toast({
         title: "Authentication Required",
@@ -201,9 +196,9 @@ export default function PostProblem() {
     }
 
     setIsSubmitting(true);
-    
+
     try {
-      
+
       // Prepare problem data for Firebase
       const problemData = {
         title,
@@ -214,17 +209,14 @@ export default function PostProblem() {
         challenges: challenges.filter(challenge => challenge.trim() !== ''),
         votes: 0,
         discussions: 0,
-        createdAt: "Just now",
         timestamp: serverTimestamp(),
+        submittedById: auth.currentUser.uid,
         submittedBy: auth.currentUser.displayName || "Anonymous"
       };
-      
+
       // Add document to Firestore
-      // Add document to Firestore
-      console.log("Submitting problem:", problemData);
       const docRef = await addDoc(collection(db, "problems"), problemData);
-      console.log("Submitted successfully. Doc ID:", docRef.id);
-      
+
       toast({
         title: "Problem Submitted",
         description: "Your problem has been successfully posted. Thank you for your contribution!"
@@ -257,65 +249,64 @@ export default function PostProblem() {
       </p>
     ) : null;
   };
-  
+
   return (
-    <FormProvider {...methods}>
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center mb-8">
-            <Link  href="/discover">
-          <Button 
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex items-center mb-8">
+        <Link href="/discover">
+          <Button
             variant="ghost"
             className="mr-4"
             onClick={() => {
               if (hasChanges) {
                 document.getElementById('confirm-navigation-dialog').click();
               } else {
-                router.push('/problems');
+                router.push('/discover');
               }
             }}
           >
             <ChevronLeft className="h-5 w-5 mr-1" />
             Back to Problems
           </Button>
-          </Link>
-          
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-50 mb-2">Post a Problem</h1>
-            <p className="text-slate-600 dark:text-slate-300">
-              Share a real-world problem that you'd like the community to help solve.
-            </p>
-          </div>
+        </Link>
+
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-50 mb-2">Post a Problem</h1>
+          <p className="text-slate-600 dark:text-slate-300">
+            Share a real-world problem that you'd like the community to help solve.
+          </p>
         </div>
-        
-        {/* Confirm navigation dialog */}
-        <AlertDialog>
-          <AlertDialogTrigger id="confirm-navigation-dialog" className="hidden">Open</AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Discard changes?</AlertDialogTitle>
-              <AlertDialogDescription>
-                You have unsaved changes. If you leave this page, your changes will be lost.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Stay on this page</AlertDialogCancel>
-              <AlertDialogAction onClick={() => router.push('/problems')}>
-                Discard changes
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-        
-        <Tabs value={activeView} onValueChange={toggleView} className="w-full mb-6">
-          <div className="flex justify-end">
-            <TabsList>
-              <TabsTrigger value="edit">Edit</TabsTrigger>
-              <TabsTrigger value="preview">Preview</TabsTrigger>
-            </TabsList>
-          </div>
-          
-          <TabsContent value="preview" className="mt-0">
-            <Card className="border-2 border-blue-200 dark:border-blue-800">
+      </div>
+
+      {/* Confirm navigation dialog */}
+      <AlertDialog>
+        <AlertDialogTrigger id="confirm-navigation-dialog" className="hidden">Open</AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard changes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes. If you leave this page, your changes will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Stay on this page</AlertDialogCancel>
+            <AlertDialogAction onClick={() => router.push('/discover')}>
+              Discard changes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Tabs value={activeView} onValueChange={toggleView} className="w-full mb-6">
+        <div className="flex justify-end">
+          <TabsList>
+            <TabsTrigger value="edit">Edit</TabsTrigger>
+            <TabsTrigger value="preview">Preview</TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent value="preview" className="mt-0">
+          <Card className="border-2 border-blue-200 dark:border-blue-800">
             <CardHeader>
               <div className="flex justify-between items-start">
                 <div className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 rounded text-xs">
@@ -342,7 +333,7 @@ export default function PostProblem() {
                   )}
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <Card>
                   <CardHeader>
@@ -361,39 +352,39 @@ export default function PostProblem() {
                       )}
                     </ul>
                   </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm font-medium">Challenges</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ul className="list-disc pl-5 space-y-1">
-                    {challenges.filter(challenge => challenge.trim()).length > 0 ? (
-                      challenges
-                        .filter(challenge => challenge.trim())
-                        .map((challenge, index) => (
-                          <li key={index} className="text-sm text-slate-600 dark:text-slate-300">{challenge}</li>
-                        ))
-                    ) : (
-                      <li className="text-sm text-slate-500">No challenges specified</li>
-                    )}
-                  </ul>
-                </CardContent>
-              </Card>
-            </div>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm font-medium">Challenges</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="list-disc pl-5 space-y-1">
+                      {challenges.filter(challenge => challenge.trim()).length > 0 ? (
+                        challenges
+                          .filter(challenge => challenge.trim())
+                          .map((challenge, index) => (
+                            <li key={index} className="text-sm text-slate-600 dark:text-slate-300">{challenge}</li>
+                          ))
+                      ) : (
+                        <li className="text-sm text-slate-500">No challenges specified</li>
+                      )}
+                    </ul>
+                  </CardContent>
+                </Card>
+              </div>
             </CardContent>
-            
+
             <CardFooter className="border-t border-slate-200 dark:border-slate-700 pt-4 flex justify-between">
-              <Button style={{ cursor: 'pointer' }} 
+              <Button style={{ cursor: 'pointer' }}
                 variant="outline"
                 type="button"
                 onClick={() => toggleView('edit')}
               >
                 Return to Edit
               </Button>
-              
-              <Button style={{ cursor: 'pointer' }} 
+
+              <Button style={{ cursor: 'pointer' }}
                 type="button"
                 onClick={handleSubmit}
                 disabled={isSubmitting}
@@ -410,7 +401,7 @@ export default function PostProblem() {
             </CardFooter>
           </Card>
         </TabsContent>
-      
+
         <TabsContent value="edit" className="mt-0">
           <Card>
             <form onSubmit={handleSubmit}>
@@ -438,7 +429,7 @@ export default function PostProblem() {
                     </FormControl>
                     {renderErrorMessage('title')}
                   </FormItem>
-                  
+
                   <FormItem>
                     <FormLabel htmlFor="description" className="text-base font-medium">Description</FormLabel>
                     <FormDescription>
@@ -455,7 +446,7 @@ export default function PostProblem() {
                     </FormControl>
                     {renderErrorMessage('description')}
                   </FormItem>
-                  
+
                   <FormItem>
                     <FormLabel htmlFor="category" className="text-base font-medium">Category</FormLabel>
                     <FormDescription>
@@ -475,7 +466,7 @@ export default function PostProblem() {
                     </FormControl>
                     {renderErrorMessage('category')}
                   </FormItem>
-                  
+
                   <FormItem>
                     <FormLabel htmlFor="tags" className="text-base font-medium">Tags</FormLabel>
                     <FormDescription>
@@ -485,7 +476,7 @@ export default function PostProblem() {
                       {tags.map((tag, index) => (
                         <Badge key={index} variant="secondary" className="flex items-center">
                           {tag}
-                          <button style={{ cursor: 'pointer' }} 
+                          <button style={{ cursor: 'pointer' }}
                             type="button"
                             onClick={() => handleRemoveTag(tag)}
                             className="ml-1 hover:text-red-500"
@@ -512,7 +503,7 @@ export default function PostProblem() {
                           }}
                         />
                       </FormControl>
-                      <Button style={{ cursor: 'pointer' }} 
+                      <Button style={{ cursor: 'pointer' }}
                         type="button"
                         onClick={handleAddTag}
                         className="rounded-l-none"
@@ -526,7 +517,7 @@ export default function PostProblem() {
                       <p className="text-sm text-amber-500 mt-1">Maximum number of tags reached (5)</p>
                     )}
                   </FormItem>
-                  
+
                   <FormItem>
                     <FormLabel className="text-base font-medium">Key Impacts</FormLabel>
                     <FormDescription>
@@ -543,7 +534,7 @@ export default function PostProblem() {
                               className={errors.impacts && !impact.trim() ? 'border-red-500' : ''}
                             />
                           </FormControl>
-                          <Button style={{ cursor: 'pointer' }} 
+                          <Button style={{ cursor: 'pointer' }}
                             type="button"
                             variant="ghost"
                             size="icon"
@@ -555,7 +546,7 @@ export default function PostProblem() {
                           </Button>
                         </div>
                       ))}
-                      <Button style={{ cursor: 'pointer' }} 
+                      <Button style={{ cursor: 'pointer' }}
                         type="button"
                         variant="ghost"
                         className="flex items-center mt-2"
@@ -568,7 +559,7 @@ export default function PostProblem() {
                     </div>
                     {renderErrorMessage('impacts')}
                   </FormItem>
-                  
+
                   <FormItem>
                     <FormLabel className="text-base font-medium">Challenges</FormLabel>
                     <FormDescription>
@@ -585,7 +576,7 @@ export default function PostProblem() {
                               className={errors.challenges && !challenge.trim() ? 'border-red-500' : ''}
                             />
                           </FormControl>
-                          <Button style={{ cursor: 'pointer' }} 
+                          <Button style={{ cursor: 'pointer' }}
                             type="button"
                             variant="ghost"
                             size="icon"
@@ -597,7 +588,7 @@ export default function PostProblem() {
                           </Button>
                         </div>
                       ))}
-                      <Button style={{ cursor: 'pointer' }} 
+                      <Button style={{ cursor: 'pointer' }}
                         type="button"
                         variant="ghost"
                         className="flex items-center mt-2"
@@ -612,11 +603,11 @@ export default function PostProblem() {
                   </FormItem>
                 </div>
               </CardContent>
-              
+
               <CardFooter className="border-t border-slate-200 dark:border-slate-700 pt-4 flex justify-between">
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button style={{ cursor: 'pointer' }}  variant="outline" type="button">
+                    <Button style={{ cursor: 'pointer' }} variant="outline" type="button">
                       Cancel
                     </Button>
                   </AlertDialogTrigger>
@@ -635,17 +626,17 @@ export default function PostProblem() {
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
-                
+
                 <div className="flex gap-2">
-                  <Button style={{ cursor: 'pointer' }} 
+                  <Button style={{ cursor: 'pointer' }}
                     variant="outline"
                     type="button"
                     onClick={() => toggleView('preview')}
                   >
                     Preview
                   </Button>
-                  
-                  <Button style={{ cursor: 'pointer' }} 
+
+                  <Button style={{ cursor: 'pointer' }}
                     type="submit"
                     disabled={isSubmitting}
                   >
@@ -663,8 +654,7 @@ export default function PostProblem() {
             </form>
           </Card>
         </TabsContent>
-        </Tabs>
-      </div>
-    </FormProvider>
+      </Tabs>
+    </div>
   );
 }
