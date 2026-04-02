@@ -1,0 +1,22 @@
+# Dependencies
+node_modules
+
+# Build outputs
+.next/
+out/
+dist/
+build/
+
+# Generated files
+*.log
+*.tsbuildinfo
+
+# Environment files
+.env*
+
+# Coverage reports
+coverage/
+
+# Misc
+.DS_Store
+Thumbs.db
