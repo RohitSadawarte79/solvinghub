@@ -72,7 +72,7 @@ func main() {
 	h := router.New(authHandler, problemHandler, commentHandler, voteHandler, solutionHandler, userHandler, healthHandler, authSvc, cfg.FrontendURL)
 
 	// ── Server ────────────────────────────────────────────────────────────
-	addr := fmt.Sprintf(":%s", cfg.Port)
+	addr := fmt.Sprintf("%s", cfg.Port)
 	logging.LogInfo("SolvingHub API listening", slog.String("address", addr))
 	if err := http.ListenAndServe(addr, h); err != nil {
 		logging.LogError(err, "server error")

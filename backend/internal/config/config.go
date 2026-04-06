@@ -29,7 +29,7 @@ type AppConfig struct {
 // Missing required vars cause a panic to fail fast at startup.
 func Load() *AppConfig {
 	cfg := &AppConfig{
-		Port:               getEnv("PORT", "8080"),
+		Port:               "0.0.0.0:" + getEnv("PORT", "8080"),
 		DBDSN:              mustGetEnv("DB_DSN"),
 		GoogleClientID:     mustGetEnv("GOOGLE_CLIENT_ID"),
 		GoogleClientSecret: mustGetEnv("GOOGLE_CLIENT_SECRET"),
