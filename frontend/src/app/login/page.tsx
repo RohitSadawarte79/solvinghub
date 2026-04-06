@@ -18,7 +18,7 @@ export default function LoginPage() {
   const handleLogin = () => {
     // Redirect to the Go backend's Google OAuth endpoint
     const API_URL = process.env.NEXT_PUBLIC_API_URL;
-    window.location.href = `${API_URL}/auth/google`;
+    window.location.href = `${API_URL}/api/v1/auth/google`;
   }
 
   return (

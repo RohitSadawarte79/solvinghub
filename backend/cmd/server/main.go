@@ -7,6 +7,10 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/getsentry/sentry-go"
+	sentrynegroni "github.com/getsentry/sentry-go/negroni"
+	"github.com/urfave/negroni/v3"
+
 	"github.com/RohitSadawarte79/solvinghub-backend/internal/config"
 	"github.com/RohitSadawarte79/solvinghub-backend/internal/handler"
 	"github.com/RohitSadawarte79/solvinghub-backend/internal/infrastructure/postgres"
@@ -16,6 +20,16 @@ import (
 )
 
 func main() {
+	// ── Sentry ────────────────────────────────────────────────────────────
+	if err := sentry.Init(sentry.ClientOptions{
+		Dsn:              "https://46634147c4d4ad4fa76db45bd4ffd758@o4511174033866752.ingest.de.sentry.io/4511174036095056",
+		EnableTracing:    true,
+		TracesSampleRate: 1.0,
+		EnableLogs:       true,
+	}); err != nil {
+		fmt.Printf("Sentry initialization failed: %v\n", err)
+	}
+
 	// ── Config ────────────────────────────────────────────────────────────
 	cfg := config.Load()
 
@@ -39,6 +53,8 @@ func main() {
 	}
 	defer db.Close()
 	logging.LogInfo("database connection established")
+
+	sentry.CaptureMessage("Sentry is working!")
 
 	// ── Repositories (Infrastructure Layer) ───────────────────────────────
 	userRepo := postgres.NewUserRepo(db)
@@ -71,10 +87,19 @@ func main() {
 	// ── Router ────────────────────────────────────────────────────────────
 	h := router.New(authHandler, problemHandler, commentHandler, voteHandler, solutionHandler, userHandler, healthHandler, authSvc, cfg.FrontendURL)
 
+	// ── Sentry middleware (outermost layer) ───────────────────────────────
+	// Repanic: true because our existing Recovery middleware handles the 500 response.
+	app := negroni.New(
+		sentrynegroni.New(sentrynegroni.Options{
+			Repanic: true,
+		}),
+	)
+	app.UseHandler(h)
+
 	// ── Server ────────────────────────────────────────────────────────────
 	addr := fmt.Sprintf("%s", cfg.Port)
 	logging.LogInfo("SolvingHub API listening", slog.String("address", addr))
-	if err := http.ListenAndServe(addr, h); err != nil {
+	if err := http.ListenAndServe(addr, app); err != nil {
 		logging.LogError(err, "server error")
 		log.Fatalf("server error: %v", err)
 	}
