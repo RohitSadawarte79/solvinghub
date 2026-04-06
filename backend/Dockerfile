@@ -1,21 +1,24 @@
-FROM golang:alpine AS builder
+FROM golang:1.22-alpine AS builder
 
 WORKDIR /app
 
-# Cache Go module downloads as a separate layer
-COPY go.mod go.sum ./
+# Copy go mod files from backend folder
+COPY backend/go.mod backend/go.sum ./
 RUN go mod download
 
-# Copy the full source and build
-COPY . .
+# Copy backend source code
+COPY backend/ .
+
+# Build the Go binary
 RUN CGO_ENABLED=0 GOOS=linux go build -o /bin/server ./cmd/server
 
-# ── Stage 2: Runner ───────────────────────────────────────────────────────────
-# Use distroless for a tiny, secure image with no shell
-FROM gcr.io/distroless/static-debian12
+# ── Stage 2: Runner ─────────────────────────────────────────────
+FROM alpine:latest
+
+WORKDIR /app
 
 COPY --from=builder /bin/server /bin/server
 
 EXPOSE 8080
 
-ENTRYPOINT ["/bin/server"]
+CMD ["/bin/server"]
