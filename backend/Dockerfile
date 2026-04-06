@@ -2,6 +2,9 @@ FROM golang:1.22-alpine AS builder
 
 WORKDIR /app
 
+# Allow Go to auto-download newer toolchain if required (like 1.25)
+ENV GOTOOLCHAIN=auto
+
 # Copy go mod files from backend folder
 COPY backend/go.mod backend/go.sum ./
 RUN go mod download
