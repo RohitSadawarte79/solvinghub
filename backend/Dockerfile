@@ -4,11 +4,10 @@ WORKDIR /app
 
 ENV GOTOOLCHAIN=auto
 
-# ← No "backend/" prefix when root dir is set to /backend
-COPY go.mod go.sum ./
+COPY backend/go.mod backend/go.sum ./
 RUN go mod download
 
-COPY . .
+COPY backend/ .
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o /bin/server ./cmd/server
 
