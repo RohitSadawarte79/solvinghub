@@ -3,7 +3,7 @@
 import { CATEGORIES } from '@/lib/constants';
 import { calculateTimeAgo } from '@/lib/timeUtils';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -36,6 +36,13 @@ import {
 import { toast } from '@/lib/toast-wrapper';
 import { api, getUserFromToken } from '@/lib/api';
 
+const sortOptions = [
+  { label: "Most Voted", value: "votes" },
+  { label: "Most Discussed", value: "discussions" },
+  { label: "Newest", value: "timestamp" },
+  { label: "Alphabetical", value: "title" }
+];
+
 export default function DiscoverProblems() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -52,13 +59,6 @@ export default function DiscoverProblems() {
   const problemsPerPage = 6;
 
   const categories = ["All Categories", ...CATEGORIES];
-
-  const sortOptions = [
-    { label: "Most Voted", value: "votes" },
-    { label: "Most Discussed", value: "discussions" },
-    { label: "Newest", value: "timestamp" },
-    { label: "Alphabetical", value: "title" }
-  ];
 
   // Add client-side lifecycle check
   useEffect(() => {
@@ -100,7 +100,7 @@ export default function DiscoverProblems() {
   }, [searchParams]);
 
   // Define fetchProblems function
-  const fetchProblems = async () => {
+  const fetchProblems = useCallback(async () => {
     if (!isMounted) return;
 
     setLoading(true);
@@ -145,7 +145,7 @@ export default function DiscoverProblems() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [sortBy, isMounted]);
   // calculateTimeAgo imported from @/lib/timeUtils
 
   useEffect(() => {
@@ -166,12 +166,12 @@ export default function DiscoverProblems() {
     }
   };
 
-  // Effect hook to fetch problems when component mounts or when sortBy changes
+  // Effect hook to fetch problems when component mounts or when fetchProblems changes
   useEffect(() => {
     if (isMounted) {
       fetchProblems();
     }
-  }, [sortBy, isMounted]);
+  }, [fetchProblems, isMounted]);
 
   const handleSortChange = (value: string) => {
     setSortBy(value);

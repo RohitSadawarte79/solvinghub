@@ -25,7 +25,7 @@ func main() {
 		env = "development"
 	}
 	logging.InitLogger(env)
-	logging.LogInfo("Starting SolvingHub API", 
+	logging.LogInfo("Starting SolvingHub API",
 		slog.String("version", "1.0.0"),
 		slog.String("port", cfg.Port),
 		slog.String("environment", env),
@@ -57,6 +57,7 @@ func main() {
 	commentSvc := service.NewCommentService(commentRepo, problemRepo)
 	voteSvc := service.NewVoteService(voteRepo, problemRepo)
 	solutionSvc := service.NewSolutionService(solutionRepo, problemRepo, userRankRepo)
+	userSvc := service.NewUserService(userRepo)
 
 	// ── Handlers (HTTP Adapter Layer) ─────────────────────────────────────
 	authHandler := handler.NewAuthHandler(authSvc, cfg.FrontendURL)
@@ -64,10 +65,11 @@ func main() {
 	commentHandler := handler.NewCommentHandler(commentSvc)
 	voteHandler := handler.NewVoteHandler(voteSvc)
 	solutionHandler := handler.NewSolutionHandler(solutionSvc, problemSvc)
+	userHandler := handler.NewUserHandler(userSvc)
 	healthHandler := handler.NewHealthHandler(db)
 
 	// ── Router ────────────────────────────────────────────────────────────
-	h := router.New(authHandler, problemHandler, commentHandler, voteHandler, solutionHandler, healthHandler, authSvc, cfg.FrontendURL)
+	h := router.New(authHandler, problemHandler, commentHandler, voteHandler, solutionHandler, userHandler, healthHandler, authSvc, cfg.FrontendURL)
 
 	// ── Server ────────────────────────────────────────────────────────────
 	addr := fmt.Sprintf(":%s", cfg.Port)

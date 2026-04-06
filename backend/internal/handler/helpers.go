@@ -29,6 +29,8 @@ func respondError(w http.ResponseWriter, err error) {
 	case errors.Is(err, domain.ErrConflict):
 		respond(w, http.StatusConflict, map[string]string{"error": err.Error()})
 	default:
+		// Print the real error to the container logs so we can debug it
+		println("INTERNAL ERROR:", err.Error())
 		respond(w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
 	}
 }

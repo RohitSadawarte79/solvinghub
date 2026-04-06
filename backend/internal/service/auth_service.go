@@ -20,7 +20,7 @@ type Claims struct {
 	Email       string `json:"email"`
 	DisplayName string `json:"name"`
 	PhotoURL    string `json:"picture"`
-	Rank        string `json:"rank"` // User's solving rank (F, E, D, C, B, A, S)
+	Rank        string `json:"rank"`   // User's solving rank (F, E, D, C, B, A, S)
 	Points      int    `json:"points"` // User's total points
 	jwt.RegisteredClaims
 }
@@ -91,6 +91,21 @@ func (s *AuthService) HandleCallback(ctx context.Context, code string) (string, 
 	}
 	if err := s.userRepo.Upsert(ctx, u); err != nil {
 		return "", fmt.Errorf("authService: upsert user: %w", err)
+	}
+
+	// Initialize rank profile (Rank F, 0 points) for new users
+	if s.rankRepo != nil {
+		if _, err := s.rankRepo.Get(ctx, u.ID); err != nil {
+			// No rank profile yet — create one with default Rank F
+			defaultProfile := &domain.UserRankProfile{
+				UserID:      u.ID,
+				CurrentRank: domain.RankF,
+				Points:      0,
+			}
+			if err := s.rankRepo.Upsert(ctx, defaultProfile); err != nil {
+				return "", fmt.Errorf("authService: init rank profile: %w", err)
+			}
+		}
 	}
 
 	// Issue JWT

@@ -22,12 +22,12 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-    X, 
-    AlertCircle, 
-    Image, 
-    Video, 
-    FileText, 
+import {
+    X,
+    AlertCircle,
+    Image as ImageIcon,
+    Video,
+    FileText,
     Link as LinkIcon,
     Trash2,
     Lightbulb,
@@ -106,7 +106,7 @@ export default function SolutionForm({
 
     const handleAddLink = () => {
         if (!newLinkUrl.trim()) return;
-        
+
         const newAttachment: Attachment = {
             id: `link-${Date.now()}`,
             type: 'link',
@@ -114,7 +114,7 @@ export default function SolutionForm({
             caption: newLinkCaption || undefined,
             order: attachments.length
         };
-        
+
         setAttachments([...attachments, newAttachment]);
         setNewLinkUrl('');
         setNewLinkCaption('');
@@ -192,7 +192,7 @@ export default function SolutionForm({
                                                 {att.type === 'link' ? (
                                                     <LinkIcon className="h-4 w-4" />
                                                 ) : att.type === 'image' ? (
-                                                    <Image className="h-4 w-4" />
+                                                    <ImageIcon className="h-4 w-4" />
                                                 ) : (
                                                     <FileText className="h-4 w-4" />
                                                 )}
@@ -292,7 +292,7 @@ export default function SolutionForm({
                                 {/* Attachments Section */}
                                 <div className="space-y-3">
                                     <label className="text-sm font-medium">Attachments (Optional)</label>
-                                    
+
                                     {/* Attachment List */}
                                     {attachments.length > 0 && (
                                         <div className="space-y-2 mb-3">
@@ -302,7 +302,7 @@ export default function SolutionForm({
                                                         {att.type === 'link' ? (
                                                             <LinkIcon className="h-5 w-5 text-blue-500" />
                                                         ) : att.type === 'image' ? (
-                                                            <Image className="h-5 w-5 text-green-500" />
+                                                            <ImageIcon className="h-5 w-5 text-green-500" />
                                                         ) : att.type === 'video' ? (
                                                             <Video className="h-5 w-5 text-purple-500" />
                                                         ) : (
@@ -371,7 +371,7 @@ export default function SolutionForm({
                                             className="opacity-50 cursor-not-allowed"
                                             title="Coming soon"
                                         >
-                                            <Image className="h-4 w-4 mr-2" />
+                                            <ImageIcon className="h-4 w-4 mr-2" />
                                             Image
                                         </Button>
                                         <Button

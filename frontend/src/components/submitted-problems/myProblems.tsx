@@ -6,23 +6,16 @@ import Link from 'next/link';
 import { api, getUserFromToken } from '@/lib/api';
 import {
   Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle
+  CardContent
 } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsContent, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   ChevronLeft,
   Edit,
   Trash2,
-  MessageSquare,
-  ThumbsUp,
-  Menu,
-  X
+  Menu
 } from 'lucide-react';
 import ProblemCard from '@/components/problems/ProblemCard';
 import { toast } from "@/lib/toast-wrapper";
@@ -45,9 +38,9 @@ import {
 
 export default function MyProblems() {
   const router = useRouter();
-  const [problems, setProblems] = useState([]);
+  const [problems, setProblems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [deleteId, setDeleteId] = useState(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('all');
   const [user, setUser] = useState(null);
   const [isTabsOpen, setIsTabsOpen] = useState(false);
@@ -64,7 +57,7 @@ export default function MyProblems() {
     }
   }, [router]);
 
-  const fetchUserProblems = async (currentUser) => {
+  const fetchUserProblems = async (currentUser: any) => {
     if (!currentUser) return;
 
     try {
@@ -83,7 +76,7 @@ export default function MyProblems() {
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: string | null) => {
     try {
       await api.delete(`/problems/${id}`);
       setProblems(problems.filter(problem => problem.id !== id));
@@ -101,7 +94,7 @@ export default function MyProblems() {
     }
   };
 
-  const handleEdit = (id) => {
+  const handleEdit = (id: string) => {
     router.push(`/edit/${id}`);
   };
 

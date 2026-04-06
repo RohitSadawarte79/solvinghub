@@ -1,4 +1,5 @@
 import PostProblemClient from "./PostProblemClient";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
 export const metadata = {
   title: 'Post a Problem — SolvingHub',
@@ -6,5 +7,9 @@ export const metadata = {
 };
 
 export default function PostPage() {
-  return <PostProblemClient />;
+  return (
+    <ProtectedRoute>
+      <PostProblemClient />
+    </ProtectedRoute>
+  );
 }

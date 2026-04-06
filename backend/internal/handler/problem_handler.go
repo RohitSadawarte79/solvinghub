@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/RohitSadawarte79/solvinghub-backend/internal/domain"
@@ -90,6 +91,17 @@ func (h *ProblemHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		respond(w, http.StatusBadRequest, map[string]string{"error": "invalid problem ID"})
 		return
 	}
+
+	// Start activity tracking asynchronously if the user is authenticated via OptionalAuth
+	if claims := middleware.ClaimsFromContext(r.Context()); claims != nil {
+		if userID, err := uuid.Parse(claims.UserID); err == nil {
+			go func() {
+				// We don't block the API return waiting for database inserts
+				_ = h.svc.TrackView(context.Background(), userID, id)
+			}()
+		}
+	}
+
 	p, err := h.svc.GetByID(r.Context(), id)
 	if err != nil {
 		respondError(w, err)

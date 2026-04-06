@@ -89,7 +89,9 @@ export function getUserFromToken(): UserProfile | null {
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const token = getToken();
     const headers = new Headers(options.headers);
-    headers.set("Content-Type", "application/json");
+    if (!(options.body instanceof FormData)) {
+        headers.set("Content-Type", "application/json");
+    }
     if (token) {
         headers.set("Authorization", `Bearer ${token}`);
     }
@@ -100,15 +102,27 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     if (response.status === 401) {
         removeToken();
         if (typeof window !== "undefined") {
-            window.location.href = "/login";
+            const currentPath = window.location.pathname;
+            if (!currentPath.startsWith("/login")) {
+                window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}&expired=true`;
+            }
         }
         throw new Error("Authentication required");
     }
 
     if (!response.ok) {
-        const errorBody = await response.json().catch(() => ({}));
         console.log(response)
-        throw new Error(errorBody.error || `HTTP error ${response.status}`);
+        let errorMessage = `HTTP error ${response.status}`;
+
+        try {
+            const data = await response.json();
+            errorMessage = data.error || errorMessage;
+        } catch {
+            const text = await response.text();
+            if (text) errorMessage = text;
+        }
+
+        throw new Error(errorMessage);
     }
 
     // Handle empty bodies safely (e.g., 204 No Content)

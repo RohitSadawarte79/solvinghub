@@ -10,6 +10,16 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
+    command: 
+      - "postgres"
+      - "-c"
+      - "logging_collector=on"
+      - "-c"
+      - "log_statement=all"
+      - "-c"
+      - "shared_preload_libraries=pg_stat_statements"
+      - "-c"
+      - "pg_stat_statements.track=all"
     volumes:
       - pg_data:/var/lib/postgresql/data
       # Mount migrations so PostgreSQL auto-runs them on first start
@@ -41,5 +51,22 @@ services:
       db:
         condition: service_healthy  # wait for DB healthcheck to pass
 
+  # ── Advanced DB Explorer (with ER Diagramming) ──────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: solvinghub_pgadmin
+    restart: unless-stopped
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@solvinghub.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
 volumes:
   pg_data:
+  pgadmin_data:

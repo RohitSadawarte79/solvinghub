@@ -17,6 +17,7 @@ func New(
 	commentHandler *handler.CommentHandler,
 	voteHandler *handler.VoteHandler,
 	solutionHandler *handler.SolutionHandler,
+	userHandler *handler.UserHandler,
 	healthHandler *handler.HealthHandler,
 	authSvc *service.AuthService,
 	frontendURL string,
@@ -37,12 +38,20 @@ func New(
 	mux.HandleFunc("GET /docs", docs.APIDocHandler)
 	mux.HandleFunc("GET /api/docs", docs.APIDocHandler)
 
+	// ── Users (public read) ────────────────────────────────────────────────
+	mux.HandleFunc("GET /api/v1/users/{id}", userHandler.GetByID)
+
+	// ── Users (authenticated edit) ─────────────────────────────────────────
+	authMW := middleware.Auth(authSvc)
+	mux.Handle("PUT /api/v1/users/{id}",
+		authMW(http.HandlerFunc(userHandler.Update)))
+
 	// ── Problems (public reads) ────────────────────────────────────────────
 	mux.HandleFunc("GET /api/v1/problems", problemHandler.List)
-	mux.HandleFunc("GET /api/v1/problems/{id}", problemHandler.GetByID)
+	optAuthMW := middleware.OptionalAuth(authSvc)
+	mux.Handle("GET /api/v1/problems/{id}", optAuthMW(http.HandlerFunc(problemHandler.GetByID)))
 
 	// ── Problems (authenticated writes) ───────────────────────────────────
-	authMW := middleware.Auth(authSvc)
 	mux.Handle("POST /api/v1/problems",
 		authMW(http.HandlerFunc(problemHandler.Create)))
 	mux.Handle("PUT /api/v1/problems/{id}",

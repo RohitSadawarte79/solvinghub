@@ -1,4 +1,5 @@
 import MyProblemsClient from "./MyProblemsClient";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
 export const metadata = {
   title: 'My Problems — SolvingHub',
@@ -6,5 +7,9 @@ export const metadata = {
 };
 
 export default function MyProblemsPage() {
-  return <MyProblemsClient />;
+  return (
+    <ProtectedRoute>
+      <MyProblemsClient />
+    </ProtectedRoute>
+  );
 }

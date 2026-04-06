@@ -184,3 +184,15 @@ func scanProblems(rows *sql.Rows) ([]domain.Problem, error) {
 	}
 	return problems, rows.Err()
 }
+
+// UpsertUserView logs that a user viewed a specific problem, updating the viewed_at timestamp.
+func (r *ProblemRepo) UpsertUserView(ctx context.Context, userID, problemID uuid.UUID) error {
+	const q = `
+		INSERT INTO user_problem_views (user_id, problem_id)
+		VALUES ($1, $2)
+		ON CONFLICT (user_id, problem_id) DO UPDATE
+		  SET viewed_at = CURRENT_TIMESTAMP
+	`
+	_, err := r.db.ExecContext(ctx, q, userID, problemID)
+	return err
+}

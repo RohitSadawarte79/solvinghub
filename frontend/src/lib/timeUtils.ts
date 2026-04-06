@@ -3,10 +3,11 @@
  * @param {Date} date - The date to calculate from
  * @returns {string} - e.g. "3 days ago", "2 hours ago"
  */
-export function calculateTimeAgo(date) {
+export function calculateTimeAgo(date: Date | string | null | undefined) {
     if (!date) return "Unknown date";
 
-    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    const seconds = Math.floor((new Date().getTime() - dateObj.getTime()) / 1000);
 
     let interval = seconds / 31536000;
     if (interval > 1) {

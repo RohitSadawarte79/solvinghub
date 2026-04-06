@@ -4,6 +4,8 @@ import { CATEGORIES } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
 import { useState, useEffect } from 'react';
 import ProblemCard from '@/components/problems/ProblemCard';
+import { BackgroundGradientAnimation } from "@/components/ui/background-gradient-animation";
+import { useTheme } from "next-themes";
 import {
   Card,
   CardContent,
@@ -37,9 +39,18 @@ export default function WelcomePage() {
   const [email, setEmail] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [problems, setProblems] = useState([]);
+  const [problems, setProblems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('trending');
+
+  const { resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isLight = mounted && resolvedTheme === 'light';
 
   const categories = CATEGORIES;
 
@@ -49,7 +60,7 @@ export default function WelcomePage() {
       setLoading(true);
       try {
         let sortField = 'votes';
-        let sortDir = 'desc';
+        const sortDir = 'desc';
 
         switch (activeTab) {
           case 'trending':
@@ -94,7 +105,7 @@ export default function WelcomePage() {
   }, [activeTab, selectedCategory]);
 
   // Handle search functionality - redirect to discover page with search term
-  const handleSearch = (e) => {
+  const handleSearch = (e: React.SyntheticEvent) => {
     e.preventDefault();
 
     if (!searchTerm.trim()) return;
@@ -104,12 +115,12 @@ export default function WelcomePage() {
   };
 
   // Handle filter by category
-  const handleCategoryFilter = (category) => {
+  const handleCategoryFilter = (category: string) => {
     setSelectedCategory(category === selectedCategory ? '' : category);
   };
 
   // Handle email subscription
-  const handleSubscribe = (e) => {
+  const handleSubscribe = (e: React.SyntheticEvent) => {
     e.preventDefault();
 
     if (!email.trim() || !email.includes('@')) {
@@ -132,7 +143,7 @@ export default function WelcomePage() {
   };
 
   // Render a loading card with consistent sizing
-  const renderLoadingCard = (key) => (
+  const renderLoadingCard = (key: number) => (
     <Card key={key} className="border border-border h-64">
       <CardHeader>
         <div className="h-4 w-20 bg-muted rounded animate-pulse mb-3"></div>
@@ -145,40 +156,57 @@ export default function WelcomePage() {
   );
 
   return (
-    <div className="min-h-screen pt-24 pb-12">
-      <div className="container mx-auto px-4">
-        {/* Hero Section */}
-        <div className="flex flex-col items-center text-center mb-16 relative">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-primary/20 blur-[120px] rounded-full pointer-events-none -z-10"></div>
-          <div className="inline-block p-2 bg-primary/10 rounded-full mb-4 px-6 border border-primary/20 backdrop-blur-sm">
-            <div className="text-primary font-medium tracking-wide">
-              Problem-First, Not Solution-First
+    <div className="-mt-16 min-h-screen relative w-full overflow-x-hidden">
+
+      {/* Hero Section Container with Animated Background */}
+      <BackgroundGradientAnimation
+        containerClassName="relative w-full min-h-screen overflow-hidden flex items-center justify-center"
+        className="absolute z-50 inset-0 flex flex-col items-center justify-center pointer-events-none"
+        gradientBackgroundStart={isLight ? "rgb(240, 245, 255)" : "rgb(15, 10, 30)"}
+        gradientBackgroundEnd={isLight ? "rgb(255, 255, 255)" : "rgb(5, 5, 15)"}
+        firstColor={isLight ? "160, 140, 255" : "60, 20, 180"}
+        secondColor={isLight ? "255, 160, 200" : "180, 40, 200"}
+        thirdColor={isLight ? "140, 200, 255" : "0, 150, 255"}
+        fourthColor={isLight ? "255, 170, 170" : "255, 80, 120"}
+        fifthColor={isLight ? "140, 255, 220" : "40, 200, 255"}
+        pointerColor={isLight ? "170, 140, 255" : "150, 100, 255"}
+        interactive={true}
+      >
+        <div className="inset-0 w-full max-w-7xl mx-auto px-4 relative z-50 pointer-events-auto">
+          <div className="flex flex-col items-start text-left max-w-3xl">
+            <div className="inline-block p-2 bg-primary/10 rounded-full mb-4 px-6 border border-primary/20 backdrop-blur-sm pointer-events-none select-none">
+              <div className="text-primary font-medium tracking-wide">
+                Problem-First, Not Solution-First
+              </div>
+            </div>
+
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-foreground mb-6 pointer-events-none select-none">
+              Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-accent to-primary animate-gradient-x">SolvingHub</span>
+            </h1>
+
+            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mb-8 leading-relaxed pointer-events-none select-none">
+              The community-driven platform where real-world problems meet innovative solutions.
+              Discover, discuss, and collaborate on problems that matter.
+            </p>
+
+            <div className="flex select-none flex-col sm:flex-row gap-4 mb-4">
+              <Link href="/discover">
+                <Button size="lg" className="shadow-lg cursor-pointer shadow-primary/20 hover:shadow-primary/40 transition-all duration-300">
+                  Discover Problems <ArrowUpRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
+              <Link href="/post">
+                <Button size="lg" variant="outline" className="border-primary/20 hover:!bg-white hover:!text-black cursor-pointer transition-colors">
+                  Submit a Problem
+                </Button>
+              </Link>
             </div>
           </div>
-
-          <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-foreground mb-6">
-            Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-accent to-primary animate-gradient-x">SolvingHub</span>
-          </h1>
-
-          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mb-8 leading-relaxed">
-            The community-driven platform where real-world problems meet innovative solutions.
-            Discover, discuss, and collaborate on problems that matter.
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Link href="/discover">
-              <Button size="lg" className="shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all duration-300">
-                Discover Problems <ArrowUpRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-            <Link href="/post">
-              <Button size="lg" variant="outline" className="border-primary/20 hover:bg-primary/10 transition-colors">
-                Submit a Problem
-              </Button>
-            </Link>
-          </div>
         </div>
+      </BackgroundGradientAnimation>
 
+      {/* Main Page Content */}
+      <div className="container mx-auto px-4 mt-12">
         {/* Search and Filter */}
         <div>
           <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4 mb-6 p-4">
@@ -450,5 +478,6 @@ export default function WelcomePage() {
         </footer>
       </div>
     </div>
+
   );
 }

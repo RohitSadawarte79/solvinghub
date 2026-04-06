@@ -44,6 +44,11 @@ func (s *ProblemService) GetByID(ctx context.Context, id uuid.UUID) (*domain.Pro
 	return s.problems.FindByID(ctx, id)
 }
 
+// TrackView implicitly tracks a user's problem view history.
+func (s *ProblemService) TrackView(ctx context.Context, userID, problemID uuid.UUID) error {
+	return s.problems.UpsertUserView(ctx, userID, problemID)
+}
+
 // List returns all problems sorted by the given parameters.
 func (s *ProblemService) List(ctx context.Context, params domain.ListParams) ([]domain.Problem, error) {
 	return s.problems.List(ctx, params)

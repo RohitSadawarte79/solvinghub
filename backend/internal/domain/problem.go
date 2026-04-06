@@ -9,22 +9,22 @@ import (
 
 // Problem is the core aggregate for a posted problem.
 type Problem struct {
-	ID               uuid.UUID       `json:"id"`
-	Title            string          `json:"title"`
-	Description      string          `json:"description"`
-	Category         string          `json:"category"`
-	Tags             []string        `json:"tags"`
-	Impacts          []string        `json:"impacts"`
-	Challenges       []string        `json:"challenges"`
-	VotesCount       int             `json:"votes"`
-	CommentsCount    int             `json:"discussions"`
-	SolutionCount    int             `json:"solutionCount"`
-	Difficulty       ProblemDifficulty `json:"difficulty"`
-	MinRankRequired  Rank            `json:"minRankRequired"`
-	SubmittedByID    uuid.UUID       `json:"submittedById"`
-	SubmittedBy      string          `json:"submittedBy"` // display name
-	CreatedAt        time.Time       `json:"createdAt"`
-	UpdatedAt        time.Time       `json:"lastEditedAt"`
+	ID              uuid.UUID         `json:"id"`
+	Title           string            `json:"title"`
+	Description     string            `json:"description"`
+	Category        string            `json:"category"`
+	Tags            []string          `json:"tags"`
+	Impacts         []string          `json:"impacts"`
+	Challenges      []string          `json:"challenges"`
+	VotesCount      int               `json:"votes"`
+	CommentsCount   int               `json:"discussions"`
+	SolutionCount   int               `json:"solutionCount"`
+	Difficulty      ProblemDifficulty `json:"difficulty"`
+	MinRankRequired Rank              `json:"minRankRequired"`
+	SubmittedByID   uuid.UUID         `json:"submittedById"`
+	SubmittedBy     string            `json:"submittedBy"` // display name
+	CreatedAt       time.Time         `json:"createdAt"`
+	UpdatedAt       time.Time         `json:"lastEditedAt"`
 }
 
 // ListParams carries optional filtering and sorting for the List query.
@@ -53,4 +53,6 @@ type ProblemRepository interface {
 	IncrementVotes(ctx context.Context, id uuid.UUID, delta int) error
 	// IncrementComments atomically adjusts the comment count by delta.
 	IncrementComments(ctx context.Context, id uuid.UUID, delta int) error
+	// UpsertUserView logs that a user viewed a specific problem.
+	UpsertUserView(ctx context.Context, userID, problemID uuid.UUID) error
 }

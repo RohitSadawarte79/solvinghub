@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import ProblemDetailComponent from '@/components/problem-details/problem-detail-component';
 
 export default function ProblemPage() {
-  const params = useParams();
+  const params = useParams() as { id: string };
 
   return <ProblemDetailComponent params={params} />;
 }

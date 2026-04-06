@@ -24,7 +24,7 @@ func NewCommentRepo(db *sql.DB) *CommentRepo {
 func (r *CommentRepo) ListByProblemID(ctx context.Context, problemID uuid.UUID) ([]domain.Comment, error) {
 	const q = `
 		SELECT c.id, c.problem_id, c.author_id, c.author_name, c.author_photo_url, c.body, c.votes_count, c.created_at,
-		       COALESCE(ur.rank, 'F') as author_rank, COALESCE(ur.points, 0) as author_points
+		       COALESCE(ur.current_rank, 'F') as author_rank, COALESCE(ur.points, 0) as author_points
 		FROM comments c
 		LEFT JOIN user_ranks ur ON c.author_id = ur.user_id
 		WHERE c.problem_id = $1
@@ -54,7 +54,7 @@ func (r *CommentRepo) ListByProblemID(ctx context.Context, problemID uuid.UUID) 
 func (r *CommentRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.Comment, error) {
 	const q = `
 		SELECT c.id, c.problem_id, c.author_id, c.author_name, c.author_photo_url, c.body, c.votes_count, c.created_at,
-		       COALESCE(ur.rank, 'F') as author_rank, COALESCE(ur.points, 0) as author_points
+		       COALESCE(ur.current_rank, 'F') as author_rank, COALESCE(ur.points, 0) as author_points
 		FROM comments c
 		LEFT JOIN user_ranks ur ON c.author_id = ur.user_id
 		WHERE c.id = $1`
@@ -128,7 +128,7 @@ func (r *CommentRepo) CreateReply(ctx context.Context, rep *domain.Reply) error 
 func (r *CommentRepo) ListRepliesByCommentID(ctx context.Context, commentID uuid.UUID) ([]domain.Reply, error) {
 	const q = `
 		SELECT r.id, r.comment_id, r.problem_id, r.author_id, r.author_name, r.author_photo_url, r.body, r.created_at,
-		       COALESCE(ur.rank, 'F') as author_rank, COALESCE(ur.points, 0) as author_points
+		       COALESCE(ur.current_rank, 'F') as author_rank, COALESCE(ur.points, 0) as author_points
 		FROM replies r
 		LEFT JOIN user_ranks ur ON r.author_id = ur.user_id
 		WHERE r.comment_id = $1

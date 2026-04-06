@@ -26,6 +26,7 @@ type commentWithReplies struct {
 }
 
 // ListByProblem handles GET /api/v1/problems/{id}/comments
+// / problems/${problemId}/comments
 func (h *CommentHandler) ListByProblem(w http.ResponseWriter, r *http.Request) {
 	problemID, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
