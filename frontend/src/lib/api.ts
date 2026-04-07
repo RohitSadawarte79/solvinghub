@@ -1,6 +1,6 @@
 import { UserProfile, Solution, UserRankProfile } from "@/types";
 
-const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL}`;
+const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL}/api/v1`;
 
 export function getToken(): string | null {
     if (typeof window === "undefined") return null;
