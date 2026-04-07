@@ -33,9 +33,9 @@ func Load() *AppConfig {
 		DBDSN:              mustGetEnv("DB_DSN"),
 		GoogleClientID:     mustGetEnv("GOOGLE_CLIENT_ID"),
 		GoogleClientSecret: mustGetEnv("GOOGLE_CLIENT_SECRET"),
-		GoogleRedirectURL:  getEnv("GOOGLE_REDIRECT_URL", "http://localhost:8080/api/v1/auth/google/callback"),
+		GoogleRedirectURL:  getEnv("GOOGLE_REDIRECT_URL", "https://solvinghub.vercel.app/api/v1/auth/google/callback"),
 		JWTSecret:          mustGetEnv("JWT_SECRET"),
-		FrontendURL:        getEnv("FRONTEND_URL", "http://localhost:3000"),
+		FrontendURL:        getEnv("FRONTEND_URL", "https://solvinghub.vercel.app"),
 	}
 	return cfg
 }
