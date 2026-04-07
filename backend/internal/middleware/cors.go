@@ -5,17 +5,30 @@ import (
 	"strings"
 )
 
-// CORS sets permissive CORS headers for the given frontend origin.
-// It handles preflight OPTIONS requests automatically.
-func CORS(frontendURL string) func(http.Handler) http.Handler {
-	// Normalize: strip trailing slash so it always matches the browser's Origin header
-	origin := strings.TrimRight(frontendURL, "/")
+// CORS dynamically allows requests from any origin listed in allowedOrigins
+// (comma-separated). It reflects the matched origin back so credentials work.
+func CORS(allowedOrigins string) func(http.Handler) http.Handler {
+	// Build a set of normalised allowed origins
+	origins := map[string]bool{}
+	for o := range strings.SplitSeq(allowedOrigins, ",") {
+		trimmed := strings.TrimSpace(strings.TrimRight(o, "/"))
+		if trimmed != "" {
+			origins[trimmed] = true
+		}
+	}
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Access-Control-Allow-Origin", origin)
+			reqOrigin := r.Header.Get("Origin")
+
+			if origins[reqOrigin] {
+				// Echo back the matched origin (required when credentials: true)
+				w.Header().Set("Access-Control-Allow-Origin", reqOrigin)
+				w.Header().Set("Access-Control-Allow-Credentials", "true")
+			}
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-			w.Header().Set("Access-Control-Allow-Credentials", "true")
+			w.Header().Set("Vary", "Origin")
 
 			// Respond to preflight immediately
 			if r.Method == http.MethodOptions {
