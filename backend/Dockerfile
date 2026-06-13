@@ -5,12 +5,12 @@ WORKDIR /app
 # Allow Go to auto-download newer toolchain if required (like 1.25)
 ENV GOTOOLCHAIN=auto
 
-# Copy go mod files from backend folder
-COPY backend/go.mod backend/go.sum ./
+# Copy go mod files
+COPY go.mod go.sum ./
 RUN go mod download
 
 # Copy backend source code
-COPY backend/ .
+COPY . .
 
 # Build the Go binary
 RUN CGO_ENABLED=0 GOOS=linux go build -o /bin/server ./cmd/server
