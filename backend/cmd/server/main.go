@@ -54,6 +54,15 @@ func main() {
 	defer db.Close()
 	logging.LogInfo("database connection established")
 
+	// ── Run Migrations ────────────────────────────────────────────────────
+	// All migration SQL uses IF NOT EXISTS / ON CONFLICT guards, so this is
+	// safe to run on every startup (idempotent).
+	if err := postgres.RunMigrations(db, "migrations"); err != nil {
+		logging.LogError(err, "failed to run database migrations")
+		log.Fatalf("failed to run migrations: %v", err)
+	}
+	logging.LogInfo("database migrations applied")
+
 	sentry.CaptureMessage("Sentry is working!")
 
 	// ── Repositories (Infrastructure Layer) ───────────────────────────────
